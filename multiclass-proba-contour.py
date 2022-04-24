@@ -7,6 +7,8 @@ Created on Mon Apr 18 19:42:13 2022
 # %% set-up
 # pylint: disable=fixme
 
+from itertools import cycle
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,6 +18,62 @@ from sklearn.datasets import load_iris
 # from sklearn.datasets import make_classification
 
 plt.style.use("seaborn-ticks")
+plt.se
+
+
+# %% the calss
+class ProbaVis():
+    def __init__(
+            self, train_data: pd.DataFrame, train_target: iter,
+            features: iter, grid_res: tuple = (100, 100)
+            ):
+        self._define_utilities()
+        self.set_data(train_data, train_target, features, grid_res)
+
+    def _define_utilities(self):
+        self._asserts = {
+            "a1": "data & target must have the same length",
+            "a2": "two features must be specified",
+            "a3": "feature {} is not numeric"
+            }
+        self._cmaps = cycle(
+            ["Blues", "Oranges", "Greens", "Reds", "Purples",
+             "YlOrBr"]
+            )
+        
+    def set_data(
+            self, train_data: pd.DataFrame, train_target: iter,
+            features: iter, grid_res: tuple = (100, 100)
+            ):
+        # input validation
+        assert train_data.shape[0] == len(train_target), self._asserts["a1"]
+        assert len(features) == 2, self._asserts["a2"]
+
+        try:
+            train_data = train_data.iloc[:, features]
+        except IndexError:
+            train_data = train_data.loc[:, features]  # KeyError possible
+
+        for feature in train_data.columns:
+            assert pd.api.types.is_numeric_dtype(train_data[feature]) &\
+                ~pd.api.types.is_bool_dtype(train_data[feature]),\
+                self._asserts["a3"].format(feature)
+
+        # define all new entries for contour
+        range_dict = {}
+        for axis, f in zip(["x", "y"], [0, 1]):
+            range_dict[axis] = np.linspace(
+                train_data.iloc[:, f].min() - train_data.iloc[:, f].std()/100,
+                train_data.iloc[:, f].max() + train_data.iloc[:, f].std()/100,
+                grid_res[f]
+                )
+        xx, yy = np.meshgrid(range_dict["x"], range_dict["y"])
+        self._mesh_entries = np.append(
+            xx.reshape(xx.size, 1), yy.reshape(yy.size, 1), axis=1
+            )
+        self.train_data = train_data
+        self.train_target = train_target
+
 
 # %% data and model
 data, target = load_iris(return_X_y=True, as_frame=True)
