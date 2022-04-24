@@ -10,8 +10,8 @@ Created on Mon Apr 18 19:42:13 2022
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.linear_model import LogisticRegression
+# from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import load_iris
 # from sklearn.datasets import make_classification
 
@@ -19,7 +19,7 @@ plt.style.use("seaborn-ticks")
 
 # %% data and model
 data, target = load_iris(return_X_y=True, as_frame=True)
-model = KNeighborsClassifier()
+model = LogisticRegression()
 
 # after data upload, allow to select any two numerical features
 num_cols = data.columns[
@@ -37,9 +37,9 @@ mesh_entries = np.append(
 
 # %% plotting
 # TODO represent as a function; hyperparam to be changed with slider
-for param in range(1, 15, 2):  # np.logspace(-3, 3, num=7):
+for param in np.logspace(-3, 3, num=7):  # range(1, 15, 2)
     # get predictions
-    model.set_params(n_neighbors=param)
+    model.set_params(C=param)
     model.fit(data.values, target)
     pred_proba = model.predict_proba(mesh_entries)
     pred_class = model.predict(mesh_entries)
