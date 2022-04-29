@@ -19,16 +19,44 @@ import matplotlib.pyplot as plt
 
 plt.style.use("seaborn-ticks")
 
-# TODO: the class (visualisation mainly), data generation, docsrings
+# TODO: docstrings, data generation, contour customisation, legend, streamlit
 
 
 # %% the calss
 class ProbaVis():
+    """
+    <>.
+
+    ...
+
+    Attributes
+    ----------
+    model :
+        <>.
+    train_data :
+        <>.
+    train_target :
+        <>.
+
+    Methods
+    -------
+    set_model(model)
+        <>.
+    set_data(train_data, train_target, features, grid_res=(100, 100))
+        <>.
+    plot()
+        <>.
+    replot()
+        <>.
+
+    """
+
     def __init__(
-            self, train_data: pd.DataFrame, train_target: iter,
+            self, model, train_data: pd.DataFrame, train_target: iter,
             features: iter, grid_res: tuple = (100, 100)
             ):
         self._define_utilities()
+        self.set_model(model)
         self.set_data(train_data, train_target, features, grid_res)
 
     def _define_utilities(self):
@@ -47,15 +75,20 @@ class ProbaVis():
             "Blues", "Oranges", "Greens", "Reds", "Purples", "Greys"
             ]
 
+        self._mstyles = ["o", "s", "P", "v", "D", "X"]
+
+    def set_model(self, new_model):
+        self.model = new_model
+
     def set_data(
             self, train_data: pd.DataFrame, train_target: iter,
             features: iter, grid_res: tuple = (100, 100)
             ):
         # input validation
-        assert train_data.shape[0] == len(train_target), self._asserts["a1"]
+        assert train_data.shape[0] == len(train_target), self._asserts["a"]
         assert len(features) == 2, self._asserts["a2"]
         assert len(grid_res) == 2 and all(
-            [type(res) is int for res in grid_res]
+            [isinstance(res, int) for res in grid_res]
             ), self._asserts["a3"]
 
         try:
@@ -68,7 +101,7 @@ class ProbaVis():
                 ~pd.api.types.is_bool_dtype(train_data[feature]),\
                 self._asserts["a4"].format(feature)
 
-        # define new entries for contour
+        # define new entries for contour, ensure all data points will be seen
         coord_dict = {}
         for axis, feature in zip(["x", "y"], [0, 1]):
             coord_dict[axis] = np.linspace(
@@ -92,10 +125,7 @@ class ProbaVis():
         self.train_data = train_data
         self.train_target = train_target
 
-    def set_model(self, new_model):
-        self.model = new_model
-
-    def plot(self, fig_size=(10, 10)):
+    def plot(self, fig_size=(10, 7), return_fig=False):
         # get predictions
         self.model.fit(self.train_data.values, self.train_target)
         pred_proba = self.model.predict_proba(self._mesh_entries)
@@ -105,20 +135,21 @@ class ProbaVis():
         full_data = self.train_data.assign(class_=self.train_target)
 
         # figure canvas and appearance
-        fig, ax = plt.subplots(1, 1, figsize=fig_size)
-        ax.set_title(f'{repr(self.model)} | train score = {train_score:.3f}')
-        ax.set_xlabel(self.train_data.iloc[:, 0].name)
-        ax.set_ylabel(self.train_data.iloc[:, 1].name)
-        ax.set_facecolor("k")  # for better decision boundary visualisation
+        fig, axes = plt.subplots(1, 1, figsize=fig_size, tight_layout=True)
+        axes.set_title(f'{repr(self.model)}')
+        axes.set_xlabel(self.train_data.iloc[:, 0].name, fontsize="large")
+        axes.set_ylabel(self.train_data.iloc[:, 1].name, fontsize="large")
+        axes.set_facecolor("k")  # for better decision boundary display
 
         # engage utilities
         cmap_cycle = cycle(self._cmap_colors)
         color_cycle = cycle(self._colors)
+        marker_cycle = cycle(self._mstyles)
 
         # iteratively plot contours and data points for every class
         for index, class_ in enumerate(self.model.classes_):
             # main filled contour
-            cs0 = ax.contourf(
+            cs0 = axes.contourf(
                 self._coord_dict["x"], self._coord_dict["y"], np.where(
                     (pred_class == class_), pred_proba[:, index], np.nan
                     ).reshape(
@@ -129,21 +160,29 @@ class ProbaVis():
                 )
 
             # isolines
-            cs1 = ax.contour(cs0, levels=cs0.levels[::2], colors="k")
-            ax.clabel(cs1, cs1.levels, inline=True,)
+            cs1 = axes.contour(cs0, levels=cs0.levels[::2], colors="k")
+            axes.clabel(cs1, cs1.levels, inline=True,)
 
             # data points
-            ax.scatter(
+            axes.scatter(
                 full_data.columns[0], full_data.columns[1],
                 data=full_data.loc[full_data.class_ == class_],
-                c=next(color_cycle), edgecolor="k", zorder=2
+                c=next(color_cycle), marker=next(marker_cycle), edgecolor="k",
+                zorder=2, label=class_
                 )
 
-        # return fig, ax
+            axes.legend(
+                loc="center left", bbox_to_anchor=(1.04, .5),
+                title=f"Train score={train_score:.3f}\nClasses",
+                fontsize="large", title_fontsize="large"
+                )
+
+        if return_fig:
+            return fig
 
     # for widget
-    def replot(self, param, param_value):
-        self.set_model(self.model.set_params(**{param: param_value}))
+    def replot(self, **params):
+        self.set_model(self.model.set_params(**params))
         self.plot()
 
 # %% deprecated
