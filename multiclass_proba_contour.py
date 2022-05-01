@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 18 19:42:13 2022
 
-@author: Semyon
-"""
 # %% set-up
 # pylint: disable=fixme
 
@@ -12,48 +7,57 @@ from itertools import cycle
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-# from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.linear_model import LogisticRegression
-# from sklearn.datasets import load_iris
-# from sklearn.datasets import make_classification
 
 plt.style.use("seaborn-ticks")
 
-# TODO: docstrings, data generation, contour customisation, legend, streamlit
+# TODO: edit docstrings, contour customisation, streamlit
 
 
 # %% the calss
 class ProbaVis():
     """
-    <>.
+    Visualises class probabilities computed by a supervised ML model trained on
+    samples with two numerical features. Supports more than two classes.
 
     ...
 
     Attributes
     ----------
-    model :
-        <>.
-    train_data :
-        <>.
-    train_target :
-        <>.
+    model : classifier
+        A class instance of a supervised ML model implementation with
+        ``fit``, ``predict`` and ``predict proba`` methods.
+    train_data : pd.DataFrame of shape (n_samples, n_features)
+        The data containing two numerical features used for model training.
+    train_target : array-like of shape (n_samples,)
+        Classes of samples from ``train_data``.
+    features : array-like of shape 2
+        An iterable listing two numerical features to be used for model
+        trainig; contains either ``str`` or ``int`` referring to either feature
+        names or indexes in ``train_data``.
 
     Methods
     -------
     set_model(model)
-        <>.
-    set_data(train_data, train_target, features, grid_res=(100, 100))
-        <>.
+        Sets the supervised ML model, performance of which is reviewed.
+    set_data(train_data, train_target, features)
+        Sets data attributes related to the training dataset.
     plot()
-        <>.
+        Draws scatter plot showing the training data discriminated by class
+        and contour plots with the height values corresponding to class
+        probabilities computed by the set supervised ML model; contours are
+        discriminated by class with the highest probability at a given pair of
+        feature values (thus visualising the decision boundary).
     replot()
-        <>.
+        Method is tuned for a widget; adjusts passed hyperpcs "arametrs of the set
+        supervised ML model and draws the updated contour plot reflecting model
+        performance with the new hyperparameters.
+        **Warning:** method changes hyperparametrs of the previously set model.
 
     """
 
     def __init__(
             self, model, train_data: pd.DataFrame, train_target: iter,
-            features: iter, grid_res: tuple = (100, 100)
+            features: iter, grid_res: tuple[int, int] = (100, 100)
             ):
         self._define_utilities()
         self.set_model(model)
@@ -62,30 +66,66 @@ class ProbaVis():
     def _define_utilities(self):
         self._asserts = {
             "a1": "data & target must have the same length",
-            "a2": "two features must be specified for visualization",
+            "a2": "two features must be specified for visualisation",
             "a3": "two integers must be used to specify grid resolution",
             "a4": "feature {} is not numeric"
             }
-        self._colors = [
-                "tab:blue", "tab:orange", "tab:green",
-                "tab:red", "tab:purple", "tab:grey"
-             ]
 
         self._cmap_colors = [
             "Blues", "Oranges", "Greens", "Reds", "Purples", "Greys"
             ]
 
-        self._mstyles = ["o", "s", "P", "v", "D", "X"]
+        self._m_colors = [
+            "tab:blue", "tab:orange", "tab:green",
+            "tab:red", "tab:purple", "tab:grey"
+            ]
+
+        self._m_styles = ["o", "s", "P", "v", "D", "X"]
 
     def set_model(self, new_model):
+        """
+        Sets the supervised ML model, performance of which is reviewed.
+
+        Parameters
+        ----------
+        new_model : classifier
+            A class instance of a supervised ML model implementation with
+            ``fit``, ``predict`` and ``predict proba`` methods.
+
+        Returns
+        -------
+        None.
+
+        """
         self.model = new_model
 
     def set_data(
             self, train_data: pd.DataFrame, train_target: iter,
-            features: iter, grid_res: tuple = (100, 100)
+            features: iter, grid_res: tuple[int, int] = (100, 100)
             ):
+        """
+        Sets data attributes related to the training dataset.
+
+        Parameters
+        ----------
+        train_data : pd.DataFrame of shape (n_samples, n_features)
+            Data containing two numerical features used for model training.
+        train_target : array-like of shape (n_samples,)
+            Classes of samples from ``train_data``.
+        features : array-like of shape 2
+            An iterable listing two numerical features to be used for model
+            trainig; contains either ``str`` or ``int`` referring to either feature
+            names or feature indexes in ``train_data``.
+        grid_res : tuple[int, int], optional
+            Resolution of contour plot; the default is (100, 100).
+
+        Returns
+        -------
+        None.
+
+        """
         # input validation
-        assert train_data.shape[0] == len(train_target), self._asserts["a"]
+        assert train_data.shape[0] == len(train_target), self._asserts["a1"]
         assert len(features) == 2, self._asserts["a2"]
         assert len(grid_res) == 2 and all(
             [isinstance(res, int) for res in grid_res]
@@ -123,127 +163,122 @@ class ProbaVis():
             axis=1
             )
         self.train_data = train_data
+        self.features = train_data.columns.values
         self.train_target = train_target
 
-    def plot(self, fig_size=(10, 7), return_fig=False):
-        # get predictions
-        self.model.fit(self.train_data.values, self.train_target)
-        pred_proba = self.model.predict_proba(self._mesh_entries)
-        pred_class = self.model.predict(self._mesh_entries)
-        train_score = self.model.score(
-            self.train_data.values, self.train_target)
-        full_data = self.train_data.assign(class_=self.train_target)
+    def plot(
+            self, contour_on: bool = True, return_fig: bool = False,
+            fig_size: tuple[int, int] = (12, 6)
+            ):
+        """
+        Draws scatter plot showing the training data discriminated by class
+        and contour plots with the height values corresponding to class
+        probabilities computed by the set supervised ML model; contours are
+        discriminated by class with the highest probability at a given pair of
+        feature values (thus visualising the decision boundary).
 
+        Parameters
+        ----------
+        contour_on : bool, optional
+           If ``True``, contour plots are drawn in addition to scatter plot; if
+           ``False``, only scatter plot is generated; the default is ``True``.
+        return_fig : bool, optional
+            If ``True``, returns a ``matplotlib.figure.Figure`` instance, if
+            ``False``, returns ``None``; the default is ``False``.
+        fig_size : tuple[int, int], optional
+            Figure dimensions; the default is (12, 6).
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The generated figure.
+
+        """
         # figure canvas and appearance
         fig, axes = plt.subplots(1, 1, figsize=fig_size, tight_layout=True)
-        axes.set_title(f'{repr(self.model)}')
         axes.set_xlabel(self.train_data.iloc[:, 0].name, fontsize="large")
         axes.set_ylabel(self.train_data.iloc[:, 1].name, fontsize="large")
-        axes.set_facecolor("k")  # for better decision boundary display
 
-        # engage utilities
+        # engage utilities and combine data with target for scatter plot
         cmap_cycle = cycle(self._cmap_colors)
-        color_cycle = cycle(self._colors)
-        marker_cycle = cycle(self._mstyles)
+        m_color_cycle = cycle(self._m_colors)
+        m_style_cycle = cycle(self._m_styles)
+        full_data = self.train_data.assign(class_=self.train_target)
+
+        # fit model, get predictions and train score
+        self.model.fit(self.train_data.values, self.train_target)
+        if contour_on:
+            pred_proba = self.model.predict_proba(self._mesh_entries)
+            pred_class = self.model.predict(self._mesh_entries)
+            train_score = self.model.score(
+                self.train_data.values, self.train_target)
+
+            axes.set_facecolor("k")  # for better decision boundary display
+            axes.set_title(
+                f"Class Probabilities predicted by {repr(self.model)}"
+                )
+            axes.text(
+                1.04, 0.05, f"Train\nScore:\n{train_score:.4f}",
+                verticalalignment="center", horizontalalignment="left",
+                transform=axes.transAxes, fontsize="large",
+                # bbox={'facecolor': 'white', 'alpha': 1}
+                )
 
         # iteratively plot contours and data points for every class
         for index, class_ in enumerate(self.model.classes_):
-            # main filled contour
-            cs0 = axes.contourf(
-                self._coord_dict["x"], self._coord_dict["y"], np.where(
-                    (pred_class == class_), pred_proba[:, index], np.nan
-                    ).reshape(
-                        self._coord_dict["x"].shape[0],
-                        self._coord_dict["y"].shape[1]
-                        ),
-                cmap=next(cmap_cycle), alpha=1,
-                )
+            if contour_on:
+                # main filled contour
+                cs0 = axes.contourf(
+                    self._coord_dict["x"], self._coord_dict["y"], np.where(
+                        (pred_class == class_), pred_proba[:, index], np.nan
+                        ).reshape(
+                            self._coord_dict["x"].shape[0],
+                            self._coord_dict["y"].shape[1]
+                            ),
+                    cmap=next(cmap_cycle), alpha=1,
+                    )
 
-            # isolines
-            cs1 = axes.contour(cs0, levels=cs0.levels[::2], colors="k")
-            axes.clabel(cs1, cs1.levels, inline=True,)
+                # isolines
+                cs1 = axes.contour(cs0, levels=cs0.levels[::2], colors="k")
+                axes.clabel(cs1, cs1.levels, inline=True,)
 
             # data points
             axes.scatter(
                 full_data.columns[0], full_data.columns[1],
                 data=full_data.loc[full_data.class_ == class_],
-                c=next(color_cycle), marker=next(marker_cycle), edgecolor="k",
-                zorder=2, label=class_
+                c=next(m_color_cycle), marker=next(m_style_cycle),
+                edgecolor="k", zorder=2, label=class_
                 )
 
             axes.legend(
                 loc="center left", bbox_to_anchor=(1.04, .5),
-                title=f"Train score={train_score:.3f}\nClasses",
-                fontsize="large", title_fontsize="large"
+                borderaxespad=0, borderpad=0,
+                title="Class", fontsize="large", title_fontsize="large"
                 )
 
         if return_fig:
             return fig
 
-    # for widget
-    def replot(self, **params):
+    def replot(self, contour_on: bool = True, **params):
+        """
+        Method is tuned for a widget; adjusts passed hyperparametrs of the set
+        supervised ML model and draws the updated contour plot reflecting model
+        performance with the new hyperparameters.
+        **Warning:** method changes hyperparametrs of the previously set model.
+
+        Parameters
+        ----------
+        contour_on : bool, optional
+            If ``True``, contour plots are drawn in addition to scatter plot;
+            if ``False``, only scatter plot is drawn; the default is ``True``.
+        **params : kwargs
+            Additional keyword arguments representing hyperparameters specific
+            to the set supervised ML model.
+
+        Returns
+        -------
+        None.
+
+        """
         self.set_model(self.model.set_params(**params))
-        self.plot()
-
-# %% deprecated
-# # %% data and model
-# data, target = load_iris(return_X_y=True, as_frame=True)
-# model = LogisticRegression()
-
-# # after data upload, allow to select any two numerical features
-# num_cols = data.columns[
-#     [pd.api.types.is_numeric_dtype(data[x]) for x in data.columns]
-#     ]
-# data = data[num_cols].iloc[:, [0, 1]]
-
-# # find a two-dimensional matrix with uniformly distributed feature values
-# x_range = np.linspace(data.iloc[:, 0].min(), data.iloc[:, 0].max(), 100)
-# y_range = np.linspace(data.iloc[:, 1].min(), data.iloc[:, 1].max(), 100)
-# xx, yy = np.meshgrid(x_range, y_range)
-# mesh_entries = np.append(
-#     xx.reshape(xx.size, 1), yy.reshape(yy.size, 1), axis=1
-#     )
-
-# # %% plotting
-# # TODO represent as a function; hyperparam to be changed with slider
-# for param in np.logspace(-3, 3, num=7):  # range(1, 15, 2)
-#     # get predictions
-#     model.set_params({"C":param})
-#     model.fit(data.values, target)
-#     pred_proba = model.predict_proba(mesh_entries)
-#     pred_class = model.predict(mesh_entries)
-#     train_score = model.score(data.values, target)
-
-#     # figure canvas and appearance
-#     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-#     ax.set_title(f'{repr(model)} | train score = {train_score:.3f}')
-#     ax.set_xlabel(data.iloc[:, 0].name)
-#     ax.set_ylabel(data.iloc[:, 1].name)
-
-#     for i, (c, cmap) in enumerate(
-#             # TODO add colormap cycler
-#             zip(model.classes_, ["Reds", "Greens", "Blues"])
-#             ):
-#         # main filled contour
-#         cs0 = ax.contourf(
-#             xx, yy, np.where(
-#                 (pred_class == c), pred_proba[:, i], np.nan
-#                 ).reshape(xx.shape),
-#             cmap=cmap, alpha=.5,
-#             )
-#         cs1 = ax.contour(cs0, levels=cs0.levels[::2], colors="k")
-
-#         ax.clabel(cs1, cs1.levels, inline=True,)
-
-#         # decision boundary
-#         cs2 = ax.contour(
-#             xx, yy, pred_class.reshape(xx.shape),
-#             colors="k", linewidths=.5
-#             )
-
-#     # TODO use plt.plot to enable labelling, add color cycler
-#     ax.scatter(
-#         data.iloc[:, 0], data.iloc[:, 1],
-#         c=target.map({0: "tab:red", 1: "tab:green", 2: "tab:blue"}),
-#         edgecolor="k"
-#         )
+        self.plot(contour_on=contour_on)
