@@ -1,4 +1,6 @@
-
+"""
+Allows examining the classification performance of a supervised ML model.
+"""
 # %% set-up
 # pylint: disable=fixme
 
@@ -17,17 +19,18 @@ plt.style.use("seaborn-ticks")
 class ProbaVis():
     """
     Visualises class probabilities computed by a supervised ML model trained on
-    samples with two numerical features. Supports more than two classes.
+    classified samples with two numerical features.
+    Supports more than two classes.
 
     ...
 
     Attributes
     ----------
     model : classifier
-        A class instance of a supervised ML model implementation with
-        ``fit``, ``predict`` and ``predict proba`` methods.
+        An instance of a supervised ML model implementation with ``fit``,
+        ``predict`` and ``predict_proba`` methods.
     train_data : pd.DataFrame of shape (n_samples, n_features)
-        The data containing two numerical features used for model training.
+        Data frame containing two numerical features used for model training.
     train_target : array-like of shape (n_samples,)
         Classes of samples from ``train_data``.
     features : array-like of shape 2
@@ -38,20 +41,19 @@ class ProbaVis():
     Methods
     -------
     set_model(model)
-        Sets the supervised ML model, performance of which is reviewed.
+        Sets the supervised ML model, performance of which is examined.
     set_data(train_data, train_target, features)
         Sets data attributes related to the training dataset.
     plot()
-        Draws scatter plot showing the training data discriminated by class
+        Draws scatter plot displaying the training data discriminated by class
         and contour plots with the height values corresponding to class
         probabilities computed by the set supervised ML model; contours are
         discriminated by class with the highest probability at a given pair of
-        feature values (thus visualising the decision boundary).
+        feature values; borders between contours show the decision boundaries.
     replot()
-        Method is tuned for a widget; adjusts passed hyperpcs "arametrs of the set
-        supervised ML model and draws the updated contour plot reflecting model
-        performance with the new hyperparameters.
-        **Warning:** method changes hyperparametrs of the previously set model.
+        Tuned for a widget use; adjusts passed hyperparameters  of the set
+        supervised ML model and calls plot method.
+        **Warning:** changes hyperparameters of the set model.
 
     """
 
@@ -84,13 +86,13 @@ class ProbaVis():
 
     def set_model(self, new_model):
         """
-        Sets the supervised ML model, performance of which is reviewed.
+        Sets the supervised ML model, performance of which is examined.
 
         Parameters
         ----------
         new_model : classifier
-            A class instance of a supervised ML model implementation with
-            ``fit``, ``predict`` and ``predict proba`` methods.
+            An instance of a supervised ML model implementation with ``fit``,
+            ``predict`` and ``predict_proba`` methods.
 
         Returns
         -------
@@ -109,13 +111,14 @@ class ProbaVis():
         Parameters
         ----------
         train_data : pd.DataFrame of shape (n_samples, n_features)
-            Data containing two numerical features used for model training.
+            Data frame containing two numerical features used for model
+            training.
         train_target : array-like of shape (n_samples,)
             Classes of samples from ``train_data``.
         features : array-like of shape 2
             An iterable listing two numerical features to be used for model
-            trainig; contains either ``str`` or ``int`` referring to either feature
-            names or feature indexes in ``train_data``.
+            trainig; contains either ``str`` or ``int`` referring to either
+            feature names or feature indexes in ``train_data``.
         grid_res : tuple[int, int], optional
             Resolution of contour plot; the default is (100, 100).
 
@@ -171,19 +174,19 @@ class ProbaVis():
             fig_size: tuple[int, int] = (12, 6)
             ):
         """
-        Draws scatter plot showing the training data discriminated by class
+        Draws scatter plot displaying the training data discriminated by class
         and contour plots with the height values corresponding to class
         probabilities computed by the set supervised ML model; contours are
         discriminated by class with the highest probability at a given pair of
-        feature values (thus visualising the decision boundary).
+        feature values; borders between contours show the decision boundaries.
 
         Parameters
         ----------
         contour_on : bool, optional
            If ``True``, contour plots are drawn in addition to scatter plot; if
-           ``False``, only scatter plot is generated; the default is ``True``.
+           ``False``, only scatter plot is drawn; the default is ``True``.
         return_fig : bool, optional
-            If ``True``, returns a ``matplotlib.figure.Figure`` instance, if
+            If ``True``, returns a ``matplotlib.figure.Figure`` instance; if
             ``False``, returns ``None``; the default is ``False``.
         fig_size : tuple[int, int], optional
             Figure dimensions; the default is (12, 6).
@@ -229,6 +232,7 @@ class ProbaVis():
             if contour_on:
                 # main filled contour
                 cs0 = axes.contourf(
+                    # TODO: tackle a case when a class is missing to avoid wrn
                     self._coord_dict["x"], self._coord_dict["y"], np.where(
                         (pred_class == class_), pred_proba[:, index], np.nan
                         ).reshape(
@@ -239,7 +243,11 @@ class ProbaVis():
                     )
 
                 # isolines
-                cs1 = axes.contour(cs0, levels=cs0.levels[::2], colors="k")
+                if cs0.get_cmap().name == "Greys":
+                    icolor = "w"
+                else:
+                    icolor = "k"
+                cs1 = axes.contour(cs0, levels=cs0.levels[::2], colors=icolor)
                 axes.clabel(cs1, cs1.levels, inline=True,)
 
             # data points
@@ -261,10 +269,9 @@ class ProbaVis():
 
     def replot(self, contour_on: bool = True, **params):
         """
-        Method is tuned for a widget; adjusts passed hyperparametrs of the set
-        supervised ML model and draws the updated contour plot reflecting model
-        performance with the new hyperparameters.
-        **Warning:** method changes hyperparametrs of the previously set model.
+       Tuned for a widget use; adjusts passed hyperparameters  of the set
+       supervised ML model and calls plot method.
+       **Warning:** changes hyperparameters of the set model.
 
         Parameters
         ----------
