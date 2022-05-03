@@ -194,7 +194,7 @@ class ProbaVis():
         Returns
         -------
         fig : matplotlib.figure.Figure
-            The generated figure.
+            The generated figure (if ``return_fig`` is ``True``).
 
         """
         # figure canvas and appearance
@@ -214,7 +214,8 @@ class ProbaVis():
             pred_proba = self.model.predict_proba(self._mesh_entries)
             pred_class = self.model.predict(self._mesh_entries)
             train_score = self.model.score(
-                self.train_data.values, self.train_target)
+                self.train_data.values, self.train_target
+                )
 
             axes.set_facecolor("k")  # for better decision boundary display
             axes.set_title(
@@ -224,33 +225,38 @@ class ProbaVis():
                 1.04, 0.05, f"Train\nScore:\n{train_score:.4f}",
                 verticalalignment="center", horizontalalignment="left",
                 transform=axes.transAxes, fontsize="large",
-                # bbox={'facecolor': 'white', 'alpha': 1}
                 )
 
         # iteratively plot contours and data points for every class
         for index, class_ in enumerate(self.model.classes_):
             if contour_on:
-                # main filled contour
-                cs0 = axes.contourf(
-                    # TODO: tackle a case when a class is missing to avoid wrn
-                    self._coord_dict["x"], self._coord_dict["y"], np.where(
-                        (pred_class == class_), pred_proba[:, index], np.nan
-                        ).reshape(
+                class_proba = np.where(
+                    (pred_class == class_), pred_proba[:, index], np.nan
+                    )
+                current_cmap = next(cmap_cycle)
+
+                if ~np.isnan(class_proba).all():  # skip contour if no class
+                    # main filled contour
+                    cs0 = axes.contourf(
+                        self._coord_dict["x"], self._coord_dict["y"],
+                        class_proba.reshape(
                             self._coord_dict["x"].shape[0],
                             self._coord_dict["y"].shape[1]
                             ),
-                    cmap=next(cmap_cycle), alpha=1,
-                    )
+                        cmap=current_cmap, alpha=1,
+                        )
 
-                # isolines
-                if cs0.get_cmap().name == "Greys":
-                    icolor = "w"
-                else:
-                    icolor = "k"
-                cs1 = axes.contour(cs0, levels=cs0.levels[::2], colors=icolor)
-                axes.clabel(cs1, cs1.levels, inline=True,)
+                    # isolines
+                    if cs0.get_cmap().name == "Greys":
+                        current_icolor = "w"
+                    else:
+                        current_icolor = "k"
+                    cs1 = axes.contour(
+                        cs0, levels=cs0.levels[::2], colors=current_icolor
+                        )
+                    axes.clabel(cs1, cs1.levels, inline=True,)
 
-            # data points
+            # data points and legend
             axes.scatter(
                 full_data.columns[0], full_data.columns[1],
                 data=full_data.loc[full_data.class_ == class_],
