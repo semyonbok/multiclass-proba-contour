@@ -28,7 +28,8 @@ class ProbaVis():
     ----------
     model : classifier
         An instance of a supervised ML model implementation with ``fit``,
-        ``predict`` and ``predict_proba`` methods.
+        ``predict``, ``predict_proba`` methods and ``class_`` data attribute
+        assigned during ``fit`` call.
     train_data : pd.DataFrame of shape (n_samples, n_features)
         Data frame containing two numerical features used for model training.
     train_target : array-like of shape (n_samples,)
@@ -58,8 +59,8 @@ class ProbaVis():
     """
 
     def __init__(
-            self, model, train_data: pd.DataFrame, train_target: iter,
-            features: iter, grid_res: tuple[int, int] = (100, 100)
+            self, model, train_data: 'pd.DataFrame', train_target: 'iter',
+            features: 'iter', grid_res: 'tuple[int, int]' = (100, 100)
             ):
         self._define_utilities()
         self.set_model(model)
@@ -92,7 +93,8 @@ class ProbaVis():
         ----------
         new_model : classifier
             An instance of a supervised ML model implementation with ``fit``,
-            ``predict`` and ``predict_proba`` methods.
+            ``predict``, ``predict_proba`` methods and ``class_`` data
+            attribute assigned during ``fit`` call.
 
         Returns
         -------
@@ -102,8 +104,8 @@ class ProbaVis():
         self.model = new_model
 
     def set_data(
-            self, train_data: pd.DataFrame, train_target: iter,
-            features: iter, grid_res: tuple[int, int] = (100, 100)
+            self, train_data: 'pd.DataFrame', train_target: 'iter',
+            features: 'iter', grid_res: 'tuple[int, int]' = (100, 100)
             ):
         """
         Sets data attributes related to the training dataset.
@@ -147,11 +149,10 @@ class ProbaVis():
         # define new entries for contour, ensure all data points will be seen
         coord_dict = {}
         for axis, feature in zip(["x", "y"], [0, 1]):
+            offset = train_data.iloc[:, feature].values.ptp()/100
             coord_dict[axis] = np.linspace(
-                train_data.iloc[:, feature].min() -
-                train_data.iloc[:, feature].values.ptp()/100,
-                train_data.iloc[:, feature].max() +
-                train_data.iloc[:, feature].values.ptp()/100,
+                train_data.iloc[:, feature].min() - offset,
+                train_data.iloc[:, feature].max() + offset,
                 grid_res[feature]
                 )
         coord_dict["x"], coord_dict["y"] = np.meshgrid(
@@ -170,8 +171,8 @@ class ProbaVis():
         self.train_target = train_target
 
     def plot(
-            self, contour_on: bool = True, return_fig: bool = False,
-            fig_size: tuple[int, int] = (12, 6)
+            self, contour_on: 'bool' = True, return_fig: 'bool' = False,
+            fig_size: 'tuple[int, int]' = (12, 6)
             ):
         """
         Draws scatter plot displaying the training data discriminated by class
@@ -239,10 +240,7 @@ class ProbaVis():
                     # main filled contour
                     cs0 = axes.contourf(
                         self._coord_dict["x"], self._coord_dict["y"],
-                        class_proba.reshape(
-                            self._coord_dict["x"].shape[0],
-                            self._coord_dict["y"].shape[1]
-                            ),
+                        class_proba.reshape(self._coord_dict["x"].shape),
                         cmap=current_cmap, alpha=1,
                         )
 
@@ -264,16 +262,16 @@ class ProbaVis():
                 edgecolor="k", zorder=2, label=class_
                 )
 
-            axes.legend(
-                loc="center left", bbox_to_anchor=(1.04, .5),
-                borderaxespad=0, borderpad=0,
-                title="Class", fontsize="large", title_fontsize="large"
-                )
+        axes.legend(
+            loc="center left", bbox_to_anchor=(1.04, .5),
+            borderaxespad=0, borderpad=0,
+            title="Class", fontsize="large", title_fontsize="large"
+            )
 
         if return_fig:
             return fig
 
-    def replot(self, contour_on: bool = True, **params):
+    def replot(self, contour_on: 'bool' = True, **params):
         """
        Tuned for a widget use; adjusts passed hyperparameters  of the set
        supervised ML model and calls plot method.
