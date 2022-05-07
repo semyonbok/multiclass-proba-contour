@@ -10,6 +10,6 @@ Inspired by [numerous examples](https://scikit-learn.org/stable/auto_examples/in
 ![image](https://user-images.githubusercontent.com/94805866/166163493-3c123e4a-2a98-4922-8a97-4122d0d02d0d.png)
 
 ## Future Work
-- [ ] Edit documentation,
+- [ ] Edit documentation and type hinting,
 - [ ] Allow for a contour plot customisation,
 - [ ] Implement a GUI with streamlit.
