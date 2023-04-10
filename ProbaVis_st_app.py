@@ -20,6 +20,16 @@ def process_toy(set_name):
     return data_set["data"], data_set["target"]
 
 
+def none_or_widget(name, *wargs, widget=st.slider, **wkwargs):
+    """"""
+    if st.checkbox(
+        "Set " + " ".join(name.split("_")),
+        help="Default value is `None`; select checkbox to set a numeric value"
+    ):
+        return widget(name, *wargs, **wkwargs)
+    return None
+
+
 # routine to pick a default sklearn model
 all_models = [m()
               for m in [RandomForestClassifier, GradientBoostingClassifier]]
@@ -37,7 +47,7 @@ with st.sidebar:
         \nthat will be used for model trainig. Currently, only two \
         \n'toy' data sets are available: wine and iris.\
         \n(https://scikit-learn.org/stable/datasets/toy_dataset.html)"
-        )
+    )
     if st.checkbox("Synthetic Data Set", False, disabled=True):
         pass
 
@@ -66,12 +76,37 @@ with st.sidebar:
                 "Input Random State", value=0, step=1)
 
     if isinstance(model, RandomForestClassifier):
-        hp["criterion"] = st.radio("criterion", ["gini", "entropy"])
-        hp["n_estimators"] = st.slider("n_estimators", 1, 500, 100)
-        hp["max_depth"] = st.slider("max_depth", 1, 25, 5)
-        hp["min_samples_leaf"] = st.slider("min_samples_leaf", 1, 25, 1)
-        hp["min_impurity_decrease"] = st.slider(
-            "min_impurity_decrease", 0.0, 0.2, 0.0, 0.01)
+        # hp["n_estimators"] = st.slider("n_estimators", 1, 500, 100)
+        # hp["criterion"] = st.radio("criterion", ["gini", "entropy"])
+        # hp["max_depth"] = st.slider("max_depth", 1, 25, None)
+        # hp["min_samples_leaf"] = st.slider("min_samples_leaf", 1, 25, 1)
+        # hp["min_impurity_decrease"] = st.slider(
+        #     "min_impurity_decrease", 0.0, 0.2, 0.0, 0.01)
+
+        hp["n_estimators"] = st.slider('Number of estimators', 1, 500, 100)
+        hp["criterion"] = st.selectbox('Criterion', ['gini', 'entropy'])
+        hp["max_depth"] = none_or_widget('max_depth', 1, 20, 5)
+        hp["min_samples_split"] = st.slider('Min samples split', 2, 20, 2)
+        hp["min_samples_leaf"] = st.slider('Min samples leaf', 1, 20, 1)
+        hp["min_weight_fraction_leaf"] = st.number_input(
+            'Min weight fraction leaf', 0.0, 0.5, 0.0, 0.01
+        )
+        hp["max_features"] = st.selectbox(
+            'Max features', ['sqrt', 'log2', None],)
+        hp["max_leaf_nodes"] = none_or_widget('max_leaf_nodes', 2, 100)
+        hp["min_impurity_decrease"] = st.number_input(
+            'Min impurity decrease', 0.0, 1.0, 0.0, 0.01
+        )
+        hp["bootstrap"] = st.checkbox('Bootstrap', True)
+        hp["oob_score"] = st.checkbox('OOB score', False)
+        hp["class_weight"] = st.selectbox(
+            'Class weight', [None, 'balanced', 'balanced_subsample'])
+        hp["ccp_alpha"] = st.number_input(
+            'CCP alpha', min_value=0.0, value=0.0, step=0.01
+        )
+        if data is not None:
+            hp["max_samples"] = none_or_widget(
+                "max_samples", 1, data.shape[0], 5)
 
     elif isinstance(model, GradientBoostingClassifier):
         hp["loss"] = st.radio("loss", ['log_loss', 'deviance', 'exponential'])
