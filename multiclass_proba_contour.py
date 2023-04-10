@@ -5,6 +5,7 @@ Allows examining the classification performance of a supervised ML model.
 # pylint: disable=fixme
 
 from itertools import cycle
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
@@ -35,7 +36,7 @@ class ProbaVis():
     train_target : array-like of shape (n_samples,)
         Classes of samples from ``train_data``.
     features : array-like of shape 2
-        An iterable listing two numerical features to be used for model
+        A sequence listing two numerical features to be used for model
         trainig; contains either ``str`` or ``int`` referring to either feature
         names or indexes in ``train_data``.
 
@@ -59,8 +60,8 @@ class ProbaVis():
     """
 
     def __init__(
-            self, model, train_data: 'pd.DataFrame', train_target: 'iter',
-            features: 'iter', grid_res: 'tuple[int, int]' = (100, 100)
+            self, model, train_data: 'pd.DataFrame', train_target: 'Sequence',
+            features: 'Sequence', grid_res: 'tuple[int, int]' = (100, 100)
             ):
         self._define_utilities()
         self.set_model(model)
@@ -104,8 +105,8 @@ class ProbaVis():
         self.model = new_model
 
     def set_data(
-            self, train_data: 'pd.DataFrame', train_target: 'iter',
-            features: 'iter', grid_res: 'tuple[int, int]' = (100, 100)
+            self, train_data: 'pd.DataFrame', train_target: 'Sequence',
+            features: 'Sequence', grid_res: 'tuple[int, int]' = (100, 100)
             ):
         """
         Sets data attributes related to the training dataset.
@@ -118,7 +119,7 @@ class ProbaVis():
         train_target : array-like of shape (n_samples,)
             Classes of samples from ``train_data``.
         features : array-like of shape 2
-            An iterable listing two numerical features to be used for model
+            A sequence listing two numerical features to be used for model
             trainig; contains either ``str`` or ``int`` referring to either
             feature names or feature indexes in ``train_data``.
         grid_res : tuple[int, int], optional
@@ -200,8 +201,8 @@ class ProbaVis():
         """
         # figure canvas and appearance
         fig, axes = plt.subplots(1, 1, figsize=fig_size, tight_layout=True)
-        axes.set_xlabel(self.train_data.iloc[:, 0].name, fontsize="large")
-        axes.set_ylabel(self.train_data.iloc[:, 1].name, fontsize="large")
+        axes.set_xlabel(self.train_data.iloc[:, 0].name, fontsize="x-large")
+        axes.set_ylabel(self.train_data.iloc[:, 1].name, fontsize="x-large")
 
         # engage utilities and combine data with target for scatter plot
         cmap_cycle = cycle(self._cmap_colors)
@@ -210,8 +211,8 @@ class ProbaVis():
         full_data = self.train_data.assign(class_=self.train_target)
 
         # fit model, get predictions and train score
-        self.model.fit(self.train_data.values, self.train_target)
         if contour_on:
+            self.model.fit(self.train_data.values, self.train_target)
             pred_proba = self.model.predict_proba(self._mesh_entries)
             pred_class = self.model.predict(self._mesh_entries)
             train_score = self.model.score(
@@ -220,16 +221,17 @@ class ProbaVis():
 
             axes.set_facecolor("k")  # for better decision boundary display
             axes.set_title(
-                f"Class Probabilities predicted by {repr(self.model)}"
+                f"Class Probabilities predicted by {repr(self.model)}",
+                fontsize="x-large"
                 )
             axes.text(
                 1.04, 0.05, f"Train\nScore:\n{train_score:.4f}",
                 verticalalignment="center", horizontalalignment="left",
-                transform=axes.transAxes, fontsize="large",
+                transform=axes.transAxes, fontsize="x-large",
                 )
 
         # iteratively plot contours and data points for every class
-        for index, class_ in enumerate(self.model.classes_):
+        for index, class_ in enumerate(np.unique(self.train_target)):
             if contour_on:
                 class_proba = np.where(
                     (pred_class == class_), pred_proba[:, index], np.nan
@@ -263,9 +265,9 @@ class ProbaVis():
                 )
 
         axes.legend(
-            loc="center left", bbox_to_anchor=(1.04, .5),
-            borderaxespad=0, borderpad=0,
-            title="Class", fontsize="large", title_fontsize="large"
+            loc="center left", bbox_to_anchor=(1.04, .5), title="Class",
+            borderaxespad=0, borderpad=0, handletextpad=1., handlelength=0.,
+            alignment="left", fontsize="x-large", title_fontsize="x-large",
             )
 
         if return_fig:
