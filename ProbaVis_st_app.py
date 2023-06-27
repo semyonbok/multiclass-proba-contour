@@ -1,6 +1,6 @@
 import re
-from sklearn.neighbors import KNeighborsClassifier
 import streamlit as st
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.datasets import load_iris, load_wine
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 import multiclass_proba_contour as mpc
@@ -92,83 +92,83 @@ with st.sidebar:
     model = fetch_model(model_pick)
 
     # set `random_state` if it is relevant
-    if model is not None:
+    if (model is not None) and (set_name is not None):
         hp = {}
         hp_desc = parse_param_desc(model)
-        st.info(model.__doc__ .split("\n\n")[1])
+        st.info("\n".join(model.__doc__ .split("\n\n")[:2]))
         if "random_state" in model.get_params().keys():
             hp["random_state"] = st.number_input(
                 "Input Random State", 0, 500, 1, 1, help=hp_desc["random_state"])
 
-    if isinstance(model, KNeighborsClassifier):
-        hp["n_neighbors"] = st.slider("N Neighbors", 1, 100, 5)
-        hp["p"] = st.slider("Power", 1, 100, 2)
+        if isinstance(model, KNeighborsClassifier):
+            hp["n_neighbors"] = st.slider("N Neighbors", 1, 100, 5)
+            hp["p"] = st.slider("Power", 1, 100, 2)
 
-    if isinstance(model, RandomForestClassifier):
-        hp["n_estimators"] = st.slider(
-            'Number of Estimators', 1, 500, 100, help=hp_desc["n_estimators"])
-        hp["criterion"] = st.selectbox(
-            'Criterion', ['gini', 'entropy'], help=hp_desc["criterion"])
-        hp["max_depth"] = none_or_widget(
-            'max_depth', 1, 20, 5, help=hp_desc["max_depth"])
-        hp["min_samples_split"] = st.slider(
-            'Min Samples Split', 2, 20, 2, help=hp_desc["min_samples_split"])
-        hp["min_samples_leaf"] = st.slider(
-            'Min Samples Leaf', 1, 20, 1, help=hp_desc["min_samples_leaf"])
-        hp["min_weight_fraction_leaf"] = st.number_input(
-            'Min Weight Fraction Leaf', 0.0, 0.5, 0.0, 0.01, help=hp_desc["min_weight_fraction_leaf"]
-        )
-        hp["max_features"] = st.selectbox(
-            'Max Features', ['sqrt', 'log2', None], help=hp_desc["max_features"])
-        hp["max_leaf_nodes"] = none_or_widget(
-            'max_leaf_nodes', 2, 100, help=hp_desc["max_leaf_nodes"])
-        hp["min_impurity_decrease"] = st.number_input(
-            'Min Impurity Decrease', 0.0, 1.0, 0.0, 0.01, help=hp_desc["min_impurity_decrease"]
-        )
-        hp["bootstrap"] = st.checkbox(
-            'Bootstrap', True, help=hp_desc["bootstrap"])
-        if hp["bootstrap"]:
-            hp["oob_score"] = st.checkbox(
-                'OOB score', False, help=hp_desc["oob_score"])
-        else:
-            hp["oob_score"] = False
-        hp["class_weight"] = st.selectbox(
-            'Class Weight', [None, 'balanced', 'balanced_subsample'], help=hp_desc["class_weight"])
-        hp["ccp_alpha"] = st.number_input(
-            'CCP Alpha', min_value=0.0, value=0.0, step=0.01, help=hp_desc["ccp_alpha"]
-        )
-        if data is not None:
-            hp["max_samples"] = none_or_widget(
-                "max_samples", 1, data.shape[0], 5, help=hp_desc["max_samples"])
+        if isinstance(model, RandomForestClassifier):
+            hp["n_estimators"] = st.slider(
+                'Number of Estimators', 1, 500, 100, help=hp_desc["n_estimators"])
+            hp["criterion"] = st.selectbox(
+                'Criterion', ['gini', 'entropy'], help=hp_desc["criterion"])
+            hp["max_depth"] = none_or_widget(
+                'max_depth', 1, 20, 5, help=hp_desc["max_depth"])
+            hp["min_samples_split"] = st.slider(
+                'Min Samples Split', 2, 20, 2, help=hp_desc["min_samples_split"])
+            hp["min_samples_leaf"] = st.slider(
+                'Min Samples Leaf', 1, 20, 1, help=hp_desc["min_samples_leaf"])
+            hp["min_weight_fraction_leaf"] = st.number_input(
+                'Min Weight Fraction Leaf', 0.0, 0.5, 0.0, 0.01, help=hp_desc["min_weight_fraction_leaf"]
+            )
+            hp["max_features"] = st.selectbox(
+                'Max Features', ['sqrt', 'log2', None], help=hp_desc["max_features"])
+            hp["max_leaf_nodes"] = none_or_widget(
+                'max_leaf_nodes', 2, 100, help=hp_desc["max_leaf_nodes"])
+            hp["min_impurity_decrease"] = st.number_input(
+                'Min Impurity Decrease', 0.0, 1.0, 0.0, 0.01, help=hp_desc["min_impurity_decrease"]
+            )
+            hp["bootstrap"] = st.checkbox(
+                'Bootstrap', True, help=hp_desc["bootstrap"])
+            if hp["bootstrap"]:
+                hp["oob_score"] = st.checkbox(
+                    'OOB score', False, help=hp_desc["oob_score"])
+            else:
+                hp["oob_score"] = False
+            hp["class_weight"] = st.selectbox(
+                'Class Weight', [None, 'balanced', 'balanced_subsample'], help=hp_desc["class_weight"])
+            hp["ccp_alpha"] = st.number_input(
+                'CCP Alpha', min_value=0.0, value=0.0, step=0.01, help=hp_desc["ccp_alpha"]
+            )
+            if data is not None:
+                hp["max_samples"] = none_or_widget(
+                    "max_samples", 1, data.shape[0], 5, help=hp_desc["max_samples"])
 
-    if isinstance(model, GradientBoostingClassifier):
-        if target.nunique() == 2:
-            hp["loss"] = st.selectbox(
-                "loss", ['log_loss', 'exponential'], help=hp_desc["loss"])
-        else:
-            hp["loss"] = st.selectbox(
-                "loss", ['log_loss'], help=hp_desc["loss"])
-        hp['learning_rate'] = st.number_input('Learning Rate', 0.0, 1.0, 0.1, 0.01, help=hp_desc["learning_rate"])
-        hp['n_estimators'] = st.slider('Number of Estimators', 1, 500, 100, help=hp_desc["n_estimators"])
-        hp['subsample'] = st.number_input('Subsample', 0.01, 1.0, 1.0, 0.01, help=hp_desc["subsample"])
-        hp['criterion'] = st.selectbox('Criterion', ['friedman_mse', 'squared_error'], 0, help=hp_desc["criterion"])
-        hp['min_samples_split'] = st.slider('Min Samples Split', 2, 500, 2, help=hp_desc["min_samples_split"])
-        hp['min_samples_leaf'] = st.slider('Min Samples Leaf', 1, 500, 1, help=hp_desc["min_samples_leaf"])
-        hp['min_weight_fraction_leaf'] = st.number_input('Min Weight Fraction Leaf', 0.0, 0.5, 0.0, 0.01, help=hp_desc["min_weight_fraction_leaf"])
-        hp['max_depth'] = st.slider('Max Depth', 1, 500, 3, help=hp_desc["max_depth"])
-        hp['min_impurity_decrease'] = st.number_input('Min Impurity Decrease', 0.0, 1.0, 0.0, 0.01, help=hp_desc["min_impurity_decrease"])
-        hp['init'] = none_or_widget("Init", ["zero"], widget=st.selectbox, help=hp_desc["init"])
-        hp['max_features'] = none_or_widget(
-            "max_features", ['sqrt', 'log2'], widget=st.selectbox, help=hp_desc["max_features"])
-        hp['max_leaf_nodes'] = none_or_widget(
-            "max_leaf_nodes", 2, 500, 10, 1, help=hp_desc["max_leaf_nodes"]
-        )
-        hp['validation_fraction'] = st.number_input('Validation Fraction', 0.01, 0.99, 0.1, 0.01, help=hp_desc["validation_fraction"])
-        hp['n_iter_no_change'] = none_or_widget(
-            "n_iter_no_change", 1, 500, 10, 1, help=hp_desc["n_iter_no_change"]
-        )
-        hp['tol'] = st.number_input('Tol', 0., 1., 1e-4, 1e-4, help=hp_desc["tol"])
-        hp['ccp_alpha'] = st.number_input('CCP Alpha', 0.0, 1.0, 0.0, 0.01, help=hp_desc["ccp_alpha"])
+        if isinstance(model, GradientBoostingClassifier):
+            if target.nunique() == 2:
+                hp["loss"] = st.selectbox(
+                    "loss", ['log_loss', 'exponential'], help=hp_desc["loss"])
+            else:
+                hp["loss"] = st.selectbox(
+                    "loss", ['log_loss'], help=hp_desc["loss"])
+            hp['learning_rate'] = st.number_input('Learning Rate', 0.0, 1.0, 0.1, 0.01, help=hp_desc["learning_rate"])
+            hp['n_estimators'] = st.slider('Number of Estimators', 1, 500, 100, help=hp_desc["n_estimators"])
+            hp['subsample'] = st.number_input('Subsample', 0.01, 1.0, 1.0, 0.01, help=hp_desc["subsample"])
+            hp['criterion'] = st.selectbox('Criterion', ['friedman_mse', 'squared_error'], 0, help=hp_desc["criterion"])
+            hp['min_samples_split'] = st.slider('Min Samples Split', 2, 500, 2, help=hp_desc["min_samples_split"])
+            hp['min_samples_leaf'] = st.slider('Min Samples Leaf', 1, 500, 1, help=hp_desc["min_samples_leaf"])
+            hp['min_weight_fraction_leaf'] = st.number_input('Min Weight Fraction Leaf', 0.0, 0.5, 0.0, 0.01, help=hp_desc["min_weight_fraction_leaf"])
+            hp['max_depth'] = st.slider('Max Depth', 1, 500, 3, help=hp_desc["max_depth"])
+            hp['min_impurity_decrease'] = st.number_input('Min Impurity Decrease', 0.0, 1.0, 0.0, 0.01, help=hp_desc["min_impurity_decrease"])
+            hp['init'] = none_or_widget("Init", ["zero"], widget=st.selectbox, help=hp_desc["init"])
+            hp['max_features'] = none_or_widget(
+                "max_features", ['sqrt', 'log2'], widget=st.selectbox, help=hp_desc["max_features"])
+            hp['max_leaf_nodes'] = none_or_widget(
+                "max_leaf_nodes", 2, 500, 10, 1, help=hp_desc["max_leaf_nodes"]
+            )
+            hp['validation_fraction'] = st.number_input('Validation Fraction', 0.01, 0.99, 0.1, 0.01, help=hp_desc["validation_fraction"])
+            hp['n_iter_no_change'] = none_or_widget(
+                "n_iter_no_change", 1, 500, 10, 1, help=hp_desc["n_iter_no_change"]
+            )
+            hp['tol'] = st.number_input('Tol', 0., 1., 1e-4, 1e-4, help=hp_desc["tol"])
+            hp['ccp_alpha'] = st.number_input('CCP Alpha', 0.0, 1.0, 0.0, 0.01, help=hp_desc["ccp_alpha"])
 
 # If data is None, don't plot anything
 # If data is not None but model is None, plot blank scatter

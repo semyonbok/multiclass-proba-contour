@@ -243,7 +243,8 @@ class ProbaVis():
                     cs0 = axes.contourf(
                         self._coord_dict["x"], self._coord_dict["y"],
                         class_proba.reshape(self._coord_dict["x"].shape),
-                        cmap=current_cmap, alpha=1,
+                        cmap=current_cmap, alpha=1, vmin=0, vmax=1,
+                        levels = np.arange(0., 1.05, 0.05)
                         )
 
                     # isolines
@@ -252,7 +253,7 @@ class ProbaVis():
                     else:
                         current_icolor = "k"
                     cs1 = axes.contour(
-                        cs0, levels=cs0.levels[::2], colors=current_icolor
+                        cs0, levels=cs0.levels[::-4], colors=current_icolor
                         )
                     axes.clabel(cs1, cs1.levels, inline=True,)
 
