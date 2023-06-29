@@ -225,7 +225,7 @@ class ProbaVis():
                 fontsize="x-large"
                 )
             axes.text(
-                1.04, 0.05, f"Train\nScore:\n{train_score:.4f}",
+                1.04, 0.05, f"Train\nScore:\n{100*train_score:.2f}%",
                 verticalalignment="center", horizontalalignment="left",
                 transform=axes.transAxes, fontsize="x-large",
                 )

@@ -1,5 +1,6 @@
 import param
 import panel as pn
+
 from sklearn.datasets import load_iris, load_wine
 
 import multiclass_proba_contour as mpc
@@ -78,13 +79,12 @@ data_widget.param.watch(update_features, 'value')
 f1_widget.param.watch(update_f2, "value")
 model_widget.param.watch(create_hyper_widgets, "value")
 
-# Create a pn.panel function to display the downstream widget
-# @pn.depends(holder.param.hyper_widgets)
-# def generate_hyper_widgets(widgets):
-#     return pn.Column(*widgets.values())
-
 input_column=pn.Column()
-input_column.extend([data_widget, f1_widget, f2_widget])
+input_column.extend([
+    pn.pane.Markdown("## Data & Features"),
+    data_widget, f1_widget, f2_widget,
+    pn.pane.Markdown("## Model & Hyperparameters"),
+    ])
 
 def master_func(set_name, model, f1, f2, **model_params):
     if set_name == "Wine":
@@ -110,29 +110,53 @@ def master_func(set_name, model, f1, f2, **model_params):
 
     model.set_params(**model_params)
     pv = mpc.ProbaVis(model, data, target, [f1, f2])
-    
-    return pv.plot(return_fig=True, fig_size=(9, 6))
+    fig = pv.plot(return_fig=True, fig_size=(9, 6))
+    predict = pv.model.predict(data[[f1, f2]].values)
+
+    accuracy_per_class = {}
+    dials = []
+    for name, dial_color in zip(
+            data_set["target_names"],
+            [
+                [(0.2, '#d0e1f2'), (0.4, '#94c4df'), (0.6, '#4a98c9'), (0.8, '#1764ab'), (1.0, '#08306b')],
+                [(0.2, '#fdd9b4'), (0.4, '#fda762'), (0.6, '#f3701b'), (0.8, '#c54102'), (1.0, '#7f2704')],
+                [(0.2, '#d3eecd'), (0.4, '#98d594'), (0.6, '#4bb062'), (0.8, '#157f3b'), (1.0, '#00441b')]
+            ]
+        ):
+        name_mask = target.values == name
+        accuracy_per_class[name] = (predict[name_mask] == target.values[name_mask]).sum()
+        accuracy_per_class[name] *= 100/len(target.values[name_mask])
+        dials.append(pn.indicators.Dial(
+            name=name, value=accuracy_per_class[name].round(2), bounds=(0,100),
+            colors=dial_color,
+            ))
+
+    # conditional operator to prevent dial aliasing
+    if set_name == "Iris":
+        return pn.Column(
+            pn.pane.Matplotlib(fig, format='svg',),
+            pn.Row(*dials, align="center"),
+        )
+    return pn.Column(
+        pn.pane.Matplotlib(fig, format='svg',),
+        pn.Row(),
+        pn.Row(*dials, align="center"),
+        )
 
 # @pn.depends(holder.param.hyper_widgets)
 # def display_widget(widget):
 #     return widget
+# pn.Column(pn.Column(display_widget)).servable()
 
 master_bind = pn.bind(
     master_func, set_name=data_widget, model=model_widget,
-    f1=f1_widget, f2=f2_widget, #**(lambda: holder.hyper_widgets)()
+    f1=f1_widget, f2=f2_widget, #**holder.hyper_widgets
     )
-# pn.Column(pn.Column(display_widget)).servable()
-# def render_hyper_widgets(model):
-#     return [w for w in pn.state.cache['hyper_widgets'].values()]
 
 hyper_bind = pn.bind(lambda x: pn.Column(*holder.hyper_widgets.values()), model_widget)
-# input_column.append(param_bind)
-
-master_pane = pn.pane.Matplotlib(master_bind, format='svg', sizing_mode='scale_both')
 
 # app layout
-pn.Row(master_pane).servable(title="Welcome to Multiclass Probability Visualizer!")
+pn.Row(master_bind).servable(title="Welcome to Multiclass Probability Visualizer!")
 hyper_column = pn.Column(model_widget, hyper_bind)
 input_column.servable(target="sidebar")
 hyper_column.servable(target="sidebar")
-
