@@ -10,10 +10,34 @@ pn.extension(template="material")
 
 # Widget options
 all_datasets = ["Iris", "Wine"]
-all_models = ["K Nearest Neighbors", "Random Forest"]
+all_models = [
+    "AdaBoost",
+    "Bagging",
+    "Bernoulli Naive Bayes",
+    "Categorical Naive Bayes",
+    "Complement Naive Bayes",
+    "Decision Tree",
+    "Extra Tree",
+    "Extra Trees",
+    "Gaussian Naive Bayes",
+    "Gaussian Process",
+    "Gradient Boosting",
+    "Hist Gradient Boosting",
+    "K Nearest Neighbors",
+    "Linear Discriminant Analysis",
+    "Logistic Regression",
+    "MLP Classifier",
+    "Multinomial Naive Bayes",
+    "NuSVC",
+    "Quadratic Discriminant Analysis",
+    "Random Forest",
+    "Radius Neighbors",
+    "SGD Classifier",
+    "SVC"
+]
+
 iris_features = [
-    'sepal length (cm)', 'sepal width (cm)',
-    'petal length (cm)', 'petal width (cm)'
+    'sepal length (cm)', 'sepal width (cm)', 'petal length (cm)', 'petal width (cm)'
     ]
 
 wine_features = [
@@ -51,6 +75,18 @@ def update_f2(event):
     f2_options.remove(event.new)
     f2_widget.options = f2_options
 
+# Attach the callbacks to the 'value' parameter of appropriate widgets
+data_widget.param.watch(update_features, 'value')
+f1_widget.param.watch(update_f2, "value")
+
+# some model-specific widgets and callback attachment
+ada_hyper_widgets = {
+    "n_estimators": pn.widgets.IntSlider(
+        name="n_estimators", value=50, start=1, end=500),
+    "learning_rate" : pn.widgets.FloatInput(
+        name="learning_rate", value=1.0, start=0.1, end=10., step=0.1),
+        }
+
 knn_hyper_widgets = {
     "n_neighbors" : pn.widgets.IntSlider(
         name="n_neighbors", value=5, start=1, end=100),
@@ -58,25 +94,28 @@ knn_hyper_widgets = {
         name="algorithm", options=['auto', 'ball_tree', 'kd_tree', 'brute']),
         }
 
+rf_hyper_widgets = {
+    "criterion" : pn.widgets.Select(
+        name="criterion", options=['gini', 'entropy']),
+    "n_estimators" : pn.widgets.IntSlider(
+        name="n_estimators", value=100, start=1, end=500),
+        }
+
 class HyperWidgetHolder(param.Parameterized):
-    hyper_widgets = param.Parameter(default=knn_hyper_widgets)
+    hyper_widgets = param.Parameter(default=ada_hyper_widgets)
 
 holder = HyperWidgetHolder()
 
 def create_hyper_widgets(event):
+    if event.new == "AdaBoost":
+        holder.hyper_widgets = ada_hyper_widgets
     if event.new == "K Nearest Neighbors":
         holder.hyper_widgets = knn_hyper_widgets
     elif event.new == "Random Forest":
-        holder.hyper_widgets = {
-            "criterion" : pn.widgets.Select(
-                name="criterion", options=['gini', 'entropy']),
-            "n_estimators" : pn.widgets.IntSlider(
-                name="n_estimators", value=100, start=1, end=500),
-        }
+        holder.hyper_widgets = rf_hyper_widgets
+    else:
+        holder.hyper_widgets = {}
 
-# Attach the callbacks to the 'value' parameter of appropriate widgets
-data_widget.param.watch(update_features, 'value')
-f1_widget.param.watch(update_f2, "value")
 model_widget.param.watch(create_hyper_widgets, "value")
 
 input_column=pn.Column()
@@ -86,7 +125,7 @@ input_column.extend([
     pn.pane.Markdown("## Model & Hyperparameters"),
     ])
 
-def master_func(set_name, model, f1, f2, **model_params):
+def master_func(set_name, model_name, f1, f2, **model_params):
     if set_name == "Wine":
         data_set = load_wine(as_frame=True)
     elif set_name == "Iris":
@@ -99,14 +138,98 @@ def master_func(set_name, model, f1, f2, **model_params):
     data_set["target"] = data_set["target"].map(target_names_map)
     data = data_set["data"]
     target = data_set["target"]
+    
+    if model_name == "AdaBoost":
+        from sklearn.ensemble import AdaBoostClassifier
+        model = AdaBoostClassifier()
 
-    if model == "K Nearest Neighbors":
+    elif model_name == "Bagging":
+        from sklearn.ensemble import BaggingClassifier
+        model = BaggingClassifier()
+
+    elif model_name == "Bernoulli Naive Bayes":
+        from sklearn.naive_bayes import BernoulliNB
+        model = BernoulliNB(alpha=.001)
+
+    elif model_name == "Categorical Naive Bayes":
+        from sklearn.naive_bayes import CategoricalNB
+        model = CategoricalNB()
+
+    elif model_name == "Complement Naive Bayes":
+        from sklearn.naive_bayes import ComplementNB
+        model = ComplementNB()
+
+    elif model_name == "Decision Tree":
+        from sklearn.tree import DecisionTreeClassifier
+        model = DecisionTreeClassifier()
+
+    elif model_name == "Extra Tree":
+        from sklearn.tree import ExtraTreeClassifier
+        model = ExtraTreeClassifier()
+
+    elif model_name == "Extra Trees":
+        from sklearn.ensemble import ExtraTreesClassifier
+        model = ExtraTreesClassifier()
+
+    elif model_name == "Gaussian Naive Bayes":
+        from sklearn.naive_bayes import GaussianNB
+        model = GaussianNB()
+
+    elif model_name == "Gaussian Process":
+        from sklearn.gaussian_process import GaussianProcessClassifier
+        model = GaussianProcessClassifier()
+
+    elif model_name == "Gradient Boosting":
+        from sklearn.ensemble import GradientBoostingClassifier
+        model = GradientBoostingClassifier()
+
+    elif model_name == "Hist Gradient Boosting":
+        from sklearn.ensemble import HistGradientBoostingClassifier
+        model = HistGradientBoostingClassifier()
+
+    elif model_name == "K Nearest Neighbors":
         from sklearn.neighbors import KNeighborsClassifier
         model = KNeighborsClassifier()
-        
-    if model == "Random Forest":
+
+    elif model_name == "Linear Discriminant Analysis":
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+        model = LinearDiscriminantAnalysis()
+
+    elif model_name == "Logistic Regression":
+        from sklearn.linear_model import LogisticRegression
+        model = LogisticRegression()
+
+    if model_name == "MLP Classifier":
+        from sklearn.neural_network import MLPClassifier
+        model = MLPClassifier()
+
+    elif model_name == "Multinomial Naive Bayes":
+        from sklearn.naive_bayes import MultinomialNB
+        model = MultinomialNB()
+
+    elif model_name == "NuSVC":
+        from sklearn.svm import NuSVC
+        model = NuSVC(probability=True)
+
+    elif model_name == "Quadratic Discriminant Analysis":
+        from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+        model = QuadraticDiscriminantAnalysis()
+
+    elif model_name == "Random Forest":
         from sklearn.ensemble import RandomForestClassifier
         model = RandomForestClassifier()
+
+    elif model_name == "Radius Neighbors":
+        from sklearn.neighbors import RadiusNeighborsClassifier
+        model = RadiusNeighborsClassifier()
+
+    elif model_name == "SGD Classifier":
+        from sklearn.linear_model import SGDClassifier
+        model = SGDClassifier(loss="log_loss")
+
+    elif model_name == "SVC":
+        from sklearn.svm import SVC
+        model = SVC(probability=True)
 
     model.set_params(**model_params)
     pv = mpc.ProbaVis(model, data, target, [f1, f2])
@@ -149,14 +272,17 @@ def master_func(set_name, model, f1, f2, **model_params):
 # pn.Column(pn.Column(display_widget)).servable()
 
 master_bind = pn.bind(
-    master_func, set_name=data_widget, model=model_widget,
+    master_func, set_name=data_widget, model_name=model_widget,
     f1=f1_widget, f2=f2_widget, #**holder.hyper_widgets
     )
 
 hyper_bind = pn.bind(lambda x: pn.Column(*holder.hyper_widgets.values()), model_widget)
 
-# app layout
+# servable components
 pn.Row(master_bind).servable(title="Welcome to Multiclass Probability Visualizer!")
-hyper_column = pn.Column(model_widget, hyper_bind)
+hyper_column = pn.Column(
+    model_widget,
+    hyper_bind
+    )
 input_column.servable(target="sidebar")
 hyper_column.servable(target="sidebar")
