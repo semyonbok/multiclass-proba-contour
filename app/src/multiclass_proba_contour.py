@@ -38,8 +38,8 @@ class ProbaVis():
         Classes of samples from ``train_data``.
     features : array-like of shape 2
         A sequence listing two numerical features to be used for model
-        trainig; contains either ``str`` or ``int`` referring to either feature
-        names or indexes in ``train_data``.
+        training; contains either ``str`` or ``int`` referring to either
+        feature names or indexes in ``train_data``.
 
     Methods
     -------
@@ -59,6 +59,7 @@ class ProbaVis():
         **Warning:** changes hyperparameters of the set model.
 
     """
+    FS = "xx-large"
 
     def __init__(
             self, model, train_data: 'pd.DataFrame', train_target: 'Sequence',
@@ -71,7 +72,7 @@ class ProbaVis():
     def _define_utilities(self):
         self._asserts = {
             "a1": "data & target must have the same length",
-            "a2": "two features must be specified for visualisation",
+            "a2": "two features must be specified for visualization",
             "a3": "two integers must be used to specify grid resolution",
             "a4": "feature {} is not numeric"
             }
@@ -121,7 +122,7 @@ class ProbaVis():
             Classes of samples from ``train_data``.
         features : array-like of shape 2
             A sequence listing two numerical features to be used for model
-            trainig; contains either ``str`` or ``int`` referring to either
+            training; contains either ``str`` or ``int`` referring to either
             feature names or feature indexes in ``train_data``.
         grid_res : tuple[int, int], optional
             Resolution of contour plot; the default is (100, 100).
@@ -203,8 +204,8 @@ class ProbaVis():
         """
         # figure canvas and appearance
         fig, axes = plt.subplots(1, 1, figsize=fig_size, tight_layout=True)
-        axes.set_xlabel(self.train_data.iloc[:, 0].name, fontsize="x-large")
-        axes.set_ylabel(self.train_data.iloc[:, 1].name, fontsize="x-large")
+        axes.set_xlabel(self.train_data.iloc[:, 0].name, fontsize=self.FS)
+        axes.set_ylabel(self.train_data.iloc[:, 1].name, fontsize=self.FS)
 
         # engage utilities and combine data with target for scatter plot
         cmap_cycle = cycle(self._cmap_colors)
@@ -224,12 +225,12 @@ class ProbaVis():
             axes.set_facecolor("k")  # for better decision boundary display
             axes.set_title(
                 f"Class Probabilities predicted by {repr(self.model)}",
-                fontsize="x-large"
+                fontsize=self.FS
                 )
             axes.text(
                 1.04, 0.05, f"Train\nScore:\n{100*train_score:.2f}%",
                 verticalalignment="center", horizontalalignment="left",
-                transform=axes.transAxes, fontsize="x-large",
+                transform=axes.transAxes, fontsize=self.FS,
                 )
 
         # iteratively plot contours and data points for every class
@@ -270,7 +271,7 @@ class ProbaVis():
         axes.legend(
             loc="center left", bbox_to_anchor=(1.04, .5), title="Class",
             borderaxespad=0, borderpad=0, handletextpad=1., handlelength=0.,
-            alignment="left", fontsize="x-large", title_fontsize="x-large",
+            alignment="left", fontsize=self.FS, title_fontsize=self.FS,
             )
 
         if return_fig:
