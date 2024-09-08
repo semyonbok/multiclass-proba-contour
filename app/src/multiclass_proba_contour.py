@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-plt.style.use("seaborn-ticks")
+plt.style.use("seaborn-v0_8-ticks")
+plt.style.available
 
 # TODO: edit docstrings, contour customisation, streamlit
 
@@ -143,9 +144,10 @@ class ProbaVis():
             train_data = train_data.loc[:, features]  # KeyError possible
 
         for feature in train_data.columns:
-            assert pd.api.types.is_numeric_dtype(train_data[feature]) &\
-                ~pd.api.types.is_bool_dtype(train_data[feature]),\
-                self._asserts["a4"].format(feature)
+            assert (
+                pd.api.types.is_numeric_dtype(train_data[feature]) &
+                ~pd.api.types.is_bool_dtype(train_data[feature])
+            ), self._asserts["a4"].format(feature)
 
         # define new entries for contour, ensure all data points will be seen
         coord_dict = {}
@@ -244,7 +246,7 @@ class ProbaVis():
                         self._coord_dict["x"], self._coord_dict["y"],
                         class_proba.reshape(self._coord_dict["x"].shape),
                         cmap=current_cmap, alpha=1, vmin=0, vmax=1,
-                        levels = np.arange(0., 1.05, 0.05)
+                        levels=np.arange(0., 1.05, 0.05)
                         )
 
                     # isolines

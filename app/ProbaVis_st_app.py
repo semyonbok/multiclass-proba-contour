@@ -3,7 +3,7 @@ import streamlit as st
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.datasets import load_iris, load_wine
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-import multiclass_proba_contour as mpc
+from src.multiclass_proba_contour import ProbaVis
 
 
 # data processing functions
@@ -175,7 +175,7 @@ with st.sidebar:
 # if data and model are not None, plot contour
 if set_name is not None:
     if 'p_v' not in st.session_state:
-        st.session_state['p_v'] = mpc.ProbaVis(model, data, target, [f1, f2])
+        st.session_state['p_v'] = ProbaVis(model, data, target, [f1, f2])
     else:
         # XXX this is quite expensive method, ought to avoid when no change in data input
         st.session_state['p_v'].set_data(data, target, [f1, f2])
