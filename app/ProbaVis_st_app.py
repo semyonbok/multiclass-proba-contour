@@ -73,7 +73,7 @@ all_models = [
 st.header("Multiclass Probability Visualizer - Welcome!")
 # st.info("Here is why this thing is useful.")
 
-# side bar controls: data, model, plot aesthetics
+# %% side bar controls: data, model, plot aesthetics
 with st.sidebar:
     # data (only toy data sets for now)
     st.subheader(
@@ -101,9 +101,10 @@ with st.sidebar:
             f2 = st.selectbox(
                 "Pick Feature 2", data.columns[data.columns != f1]
                 )
+        else:
+            st.stop()
 
     st.subheader("Classifier Model")
-    # FIXME disable model selection and set to None when data set is not picked
     model_pick = st.radio("Select one of the Classifiers", all_models)
     model = fetch_model(model_pick)
 
@@ -118,6 +119,7 @@ with st.sidebar:
                 help=hp_desc["random_state"]
             )
 
+# %%% KNN
         if isinstance(model, KNeighborsClassifier):
             hp["n_neighbors"] = st.slider(
                 "N Neighbors",
@@ -150,6 +152,7 @@ with st.sidebar:
                 help=hp_desc["metric"]
             )
 
+# %%% DTC
         if isinstance(model, DecisionTreeClassifier):
             hp["criterion"] = st.selectbox(
                 "Criterion", ["gini", "entropy", "log_loss"],
@@ -177,7 +180,7 @@ with st.sidebar:
                 help=hp_desc["min_weight_fraction_leaf"],
             )
             hp["max_features"] = st.selectbox(
-                "Max Features", ["sqrt", "log2", None],
+                "Max Features", [None, "sqrt", "log2"],
                 help=hp_desc["max_features"]
             )
             hp["max_leaf_nodes"] = none_or_widget(
@@ -201,7 +204,7 @@ with st.sidebar:
                 step=0.01,
                 help=hp_desc["ccp_alpha"],
             )
-
+# %%% RFC
         if isinstance(model, RandomForestClassifier):
             hp["n_estimators"] = st.slider(
                 "Number of Estimators", 1, 500, 100,
@@ -267,6 +270,7 @@ with st.sidebar:
                     help=hp_desc["max_samples"]
                 )
 
+# %%% GBC
         if isinstance(model, GradientBoostingClassifier):
             if target.nunique() == 2:
                 hp["loss"] = st.selectbox(
@@ -358,6 +362,7 @@ with st.sidebar:
                 help=hp_desc["ccp_alpha"]
             )
 
+# %% Session State and Plotting Logic
 # If data is None, don't plot anything
 # If data is not None but model is None, plot blank scatter
 # if data and model are not None, plot contour
@@ -365,6 +370,7 @@ if set_name is not None:
     if "set_and_features" not in st.session_state:
         st.session_state["set_and_features"] = (set_name, f1, f2)
 
+    # call `set_data` only when there is change in... data!
     if "p_v" not in st.session_state:
         st.session_state["p_v"] = ProbaVis(model, data, target, [f1, f2])
     elif st.session_state["set_and_features"] != (set_name, f1, f2):
@@ -372,6 +378,7 @@ if set_name is not None:
         st.session_state["p_v"].set_data(data, target, [f1, f2])
 
     if model is None:
+        st.subheader("Scatter Plot")
         st.pyplot(
             st.session_state["p_v"].plot(
                 contour_on=False, return_fig=True, fig_size=(16, 9)
@@ -379,8 +386,13 @@ if set_name is not None:
         )
     else:
         st.session_state["p_v"].set_model(model.set_params(**hp))
+        st.subheader("Contour Plot")
         st.pyplot(
             st.session_state["p_v"].plot(
                 contour_on=True, return_fig=True, fig_size=(16, 9)
             )
         )
+        st.subheader("Confusion Matrices and Errors")
+        st.pyplot(
+            st.session_state["p_v"].plot_confusion_matrices(return_fig=True)
+            )

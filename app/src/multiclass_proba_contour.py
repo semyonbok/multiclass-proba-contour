@@ -10,14 +10,12 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay
 
 plt.style.use("seaborn-v0_8-ticks")
-plt.style.available
-
-# TODO: edit docstrings, contour customisation, streamlit
 
 
-# %% the calss
+# %% the class
 class ProbaVis():
     """
     Visualises class probabilities computed by a supervised ML model trained on
@@ -59,7 +57,7 @@ class ProbaVis():
         **Warning:** changes hyperparameters of the set model.
 
     """
-    FS = "xx-large"
+    FS = 22  # "xx-large"
 
     def __init__(
             self, model, train_data: 'pd.DataFrame', train_target: 'Sequence',
@@ -272,6 +270,63 @@ class ProbaVis():
             loc="center left", bbox_to_anchor=(1.04, .5), title="Class",
             borderaxespad=0, borderpad=0, handletextpad=1., handlelength=0.,
             alignment="left", fontsize=self.FS, title_fontsize=self.FS,
+            )
+        axes.tick_params(axis='both', which='major', labelsize=self.FS)
+
+        if return_fig:
+            return fig
+
+    def plot_confusion_matrices(self, return_fig=False, fig_size=(16, 16)):
+        self.model.fit(self.train_data, self.train_target)
+        sw = self.model.predict(self.train_data) != self.train_target
+
+        with plt.rc_context({'font.size': self.FS}):
+            fig, axes = plt.subplots(
+                nrows=2, ncols=2, figsize=fig_size, tight_layout=True,
+                )
+
+            axes[0][0].set_title("Confusion Matrix (CM)")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data, self.train_target,
+                display_labels=np.unique(self.train_target).tolist(),
+                normalize=None,
+                cmap="Greys",
+                ax=axes[0][0]
+            )
+
+            axes[0][1].set_title("CM normalized by row")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data, self.train_target,
+                display_labels=np.unique(self.train_target).tolist(),
+                normalize="true",
+                cmap="Greys",
+                ax=axes[0][1],
+                values_format=".0%",
+                im_kw={"vmin": 0, "vmax": 1}
+            )
+
+            axes[1][0].set_title("Errors normalized by column")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data, self.train_target,
+                display_labels=np.unique(self.train_target).tolist(),
+                sample_weight=sw,
+                normalize="pred",
+                cmap="Reds",
+                ax=axes[1][1],
+                values_format=".0%",
+                im_kw={"vmin": 0, "vmax": 1, "aspect": 1}
+            )
+
+            axes[1][1].set_title("Errors normalized by row")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data, self.train_target,
+                display_labels=np.unique(self.train_target).tolist(),
+                sample_weight=sw,
+                normalize="true",
+                cmap="Reds",
+                ax=axes[1][0],
+                values_format=".0%",
+                im_kw={"vmin": 0, "vmax": 1}
             )
 
         if return_fig:
