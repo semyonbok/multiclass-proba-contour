@@ -1,5 +1,6 @@
 import re
 import streamlit as st
+from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.datasets import load_iris, load_wine
 from sklearn.tree import DecisionTreeClassifier
@@ -26,6 +27,8 @@ def process_toy(set_name):
 
 def fetch_model(model_pick):
     """Needed to avoid terminal error caused by model selection checkbox"""
+    if model_pick == "Logistic Regression":
+        return LogisticRegression()
     if model_pick == "K Nearest Neighbors":
         return KNeighborsClassifier()
     if model_pick == "Decision Tree":
@@ -49,23 +52,34 @@ def parse_param_desc(model):
     return params_desc
 
 
-def none_or_widget(name, *wargs, widget=st.slider, **wkwargs):
+def parse_model_desc(model):
+    desc = model.__doc__.split("Parameters")[0]
+    desc = "\n".join(desc.split("\n\n"))
+    return desc
+
+
+def none_or_widget(
+        name, *wargs, widget=st.slider, checkbox_kwargs=None, **wkwargs
+        ):
     """"""
+    default_checkbox_kwargs = dict(help=(
+        "Default parameter value is `None`. "
+        "Select the checkbox to set another value."
+            ))
+    if checkbox_kwargs is None:
+        checkbox_kwargs = default_checkbox_kwargs
+    elif isinstance(checkbox_kwargs, dict):
+        checkbox_kwargs = {**default_checkbox_kwargs, **checkbox_kwargs}
+
     name = " ".join(name.split("_"))
-    if st.checkbox(
-        "Set " + name,  # key=name,
-        help=(
-            "Default parameter value is `None`. "
-            "Select the checkbox to set another value."
-        )
-    ):
+    if st.checkbox("Set " + name, **checkbox_kwargs):
         return widget(name.capitalize(), *wargs, **wkwargs)
     return None
 
 
 # routine to pick a default sklearn model
 all_models = [
-    None, "K Nearest Neighbors", "Decision Tree",
+    None, "Logistic Regression", "K Nearest Neighbors", "Decision Tree",
     "Random Forest", "Gradient Boosting"
 ]
 
@@ -112,18 +126,82 @@ with st.sidebar:
     if (model is not None) and (set_name is not None):
         hp = {}
         hp_desc = parse_param_desc(model)
-        st.info("\n".join(model.__doc__.split("\n\n")[:2]))
+        st.expander("Model Info", icon="ℹ️").info(parse_model_desc(model))
         if "random_state" in model.get_params().keys():
             hp["random_state"] = st.number_input(
                 "Input Random State", 0, 500, 1, 1,
                 help=hp_desc["random_state"]
             )
 
-# %%% KNN
+        # %%% Logistic Regression
+        if isinstance(model, LogisticRegression):
+            hp["penalty"] = st.selectbox(
+                "Penalty", ["l2", "l1", "elasticnet", None],
+                help=hp_desc["penalty"]
+            )
+            hp["l1_ratio"] = none_or_widget(
+                "L1 Ratio", 0.0, 1.0, 0.5, 0.01,
+                widget=st.number_input,
+                checkbox_kwargs=dict(
+                    disabled=hp["penalty"] == "elasticnet",
+                    value=hp["penalty"] == "elasticnet",
+                ),
+                help=hp_desc["l1_ratio"],
+            )
+            hp["tol"] = st.number_input(
+                "Tolerance",
+                min_value=1e-6, value=1e-4, step=1e-6,
+                help=hp_desc["tol"],
+                format="%.2e"
+            )
+            hp["C"] = st.slider(
+                "Inverse of Regularization Strength (C)", 0.01, 10., 1., 0.01,
+                help=hp_desc["C"]
+            )
+            hp["fit_intercept"] = st.checkbox(
+                "Fit Intercept", value=True,
+                help=hp_desc["fit_intercept"]
+            )
+            hp["intercept_scaling"] = st.number_input(
+                "Intercept Scaling", 0.1, 10.0, 1.0, 0.1,
+                help=hp_desc["intercept_scaling"],
+            )
+            hp["class_weight"] = st.selectbox(
+                "Class Weight", [None, "balanced"],
+                help=hp_desc["class_weight"]
+            )
+            solver_options = [
+                "lbfgs", "liblinear", "newton-cg", "newton-cholesky",
+                "sag", "saga"
+                ]
+            if hp["penalty"] == 'l1':
+                solver_options = ['liblinear', 'saga']
+            elif hp["penalty"] == 'elasticnet':
+                solver_options = ['saga']
+            elif hp["penalty"] is None:
+                solver_options = ['lbfgs', 'newton-cg', 'sag', 'saga']
+            hp["solver"] = st.selectbox(
+                "Solver", solver_options,
+                help=hp_desc["solver"],
+            )
+            disable_dual = not (
+                (hp["penalty"] == "l2") and (hp["solver"] == "liblinear")
+                )
+            hp["dual"] = st.checkbox(
+                "Dual Formulation",
+                value=False if disable_dual else True,
+                help=hp_desc["dual"],
+                disabled=disable_dual
+            )
+            hp["max_iter"] = st.slider(
+                "Max Iterations", 1, 500, 100, 10,
+                help=hp_desc["max_iter"]
+            )
+
+        # %%% KNN
         if isinstance(model, KNeighborsClassifier):
             hp["n_neighbors"] = st.slider(
-                "N Neighbors",
-                1, 100, 5,
+                "N Neighbors", 1, 100, 5,
                 help=hp_desc["n_neighbors"]
                 )
             hp["weights"] = st.selectbox(
@@ -135,13 +213,11 @@ with st.sidebar:
                 help=hp_desc["algorithm"]
             )
             hp["leaf_size"] = st.slider(
-                "Leaf Size",
-                1, 100, 30,
+                "Leaf Size", 1, 100, 30,
                 help=hp_desc["leaf_size"]
                 )
             hp["p"] = st.slider(
-                "Power",
-                1, 100, 2,
+                "Power", 1, 100, 2,
                 help=hp_desc["p"]
                 )
             hp["metric"] = st.selectbox(
@@ -152,7 +228,7 @@ with st.sidebar:
                 help=hp_desc["metric"]
             )
 
-# %%% DTC
+        # %%% DTC
         if isinstance(model, DecisionTreeClassifier):
             hp["criterion"] = st.selectbox(
                 "Criterion", ["gini", "entropy", "log_loss"],
@@ -175,8 +251,7 @@ with st.sidebar:
                 help=hp_desc["min_samples_leaf"]
             )
             hp["min_weight_fraction_leaf"] = st.number_input(
-                "Min Weight Fraction Leaf",
-                0.0, 0.5, 0.0, 0.01,
+                "Min Weight Fraction Leaf", 0.0, 0.5, 0.0, 0.01,
                 help=hp_desc["min_weight_fraction_leaf"],
             )
             hp["max_features"] = st.selectbox(
@@ -188,8 +263,7 @@ with st.sidebar:
                 help=hp_desc["max_leaf_nodes"]
             )
             hp["min_impurity_decrease"] = st.number_input(
-                "Min Impurity Decrease",
-                0.0, 1.0, 0.0, 0.01,
+                "Min Impurity Decrease", 0.0, 1.0, 0.0, 0.01,
                 help=hp_desc["min_impurity_decrease"],
             )
             hp["class_weight"] = st.selectbox(
@@ -199,12 +273,10 @@ with st.sidebar:
             )
             hp["ccp_alpha"] = st.number_input(
                 "CCP Alpha",
-                min_value=0.0,
-                value=0.0,
-                step=0.01,
+                min_value=0.0, value=0.0, step=0.01,
                 help=hp_desc["ccp_alpha"],
             )
-# %%% RFC
+        # %%% RFC
         if isinstance(model, RandomForestClassifier):
             hp["n_estimators"] = st.slider(
                 "Number of Estimators", 1, 500, 100,
@@ -227,8 +299,7 @@ with st.sidebar:
                 help=hp_desc["min_samples_leaf"]
             )
             hp["min_weight_fraction_leaf"] = st.number_input(
-                "Min Weight Fraction Leaf",
-                0.0, 0.5, 0.0, 0.01,
+                "Min Weight Fraction Leaf", 0.0, 0.5, 0.0, 0.01,
                 help=hp_desc["min_weight_fraction_leaf"],
             )
             hp["max_features"] = st.selectbox(
@@ -240,12 +311,13 @@ with st.sidebar:
                 help=hp_desc["max_leaf_nodes"]
             )
             hp["min_impurity_decrease"] = st.number_input(
-                "Min Impurity Decrease",
-                0.0, 1.0, 0.0, 0.01,
+                "Min Impurity Decrease", 0.0, 1.0, 0.0, 0.01,
                 help=hp_desc["min_impurity_decrease"],
             )
-            hp["bootstrap"] = st.checkbox("Bootstrap", True,
-                                          help=hp_desc["bootstrap"])
+            hp["bootstrap"] = st.checkbox(
+                "Bootstrap", True,
+                help=hp_desc["bootstrap"]
+                )
             if hp["bootstrap"]:
                 hp["oob_score"] = st.checkbox(
                     "OOB score", False, help=hp_desc["oob_score"]
@@ -259,9 +331,7 @@ with st.sidebar:
             )
             hp["ccp_alpha"] = st.number_input(
                 "CCP Alpha",
-                min_value=0.0,
-                value=0.0,
-                step=0.01,
+                min_value=0.0, value=0.0, step=0.01,
                 help=hp_desc["ccp_alpha"],
             )
             if data is not None:
@@ -270,7 +340,7 @@ with st.sidebar:
                     help=hp_desc["max_samples"]
                 )
 
-# %%% GBC
+        # %%% GBC
         if isinstance(model, GradientBoostingClassifier):
             if target.nunique() == 2:
                 hp["loss"] = st.selectbox(
@@ -283,38 +353,31 @@ with st.sidebar:
                     help=hp_desc["loss"]
                 )
             hp["learning_rate"] = st.number_input(
-                "Learning Rate",
-                0.0, 1.0, 0.1, 0.01,
+                "Learning Rate", 0.0, 1.0, 0.1, 0.01,
                 help=hp_desc["learning_rate"]
             )
             hp["n_estimators"] = st.slider(
-                "Number of Estimators",
-                1, 500, 100,
+                "Number of Estimators", 1, 500, 100,
                 help=hp_desc["n_estimators"]
             )
             hp["subsample"] = st.number_input(
-                "Subsample",
-                0.01, 1.0, 1.0, 0.01,
+                "Subsample", 0.01, 1.0, 1.0, 0.01,
                 help=hp_desc["subsample"]
             )
             hp["criterion"] = st.selectbox(
-                "Criterion",
-                ["friedman_mse", "squared_error"],
+                "Criterion", ["friedman_mse", "squared_error"],
                 help=hp_desc["criterion"],
             )
             hp["min_samples_split"] = st.slider(
-                "Min Samples Split",
-                2, 500, 2,
+                "Min Samples Split", 2, 500, 2,
                 help=hp_desc["min_samples_split"]
             )
             hp["min_samples_leaf"] = st.slider(
-                "Min Samples Leaf",
-                1, 500, 1,
+                "Min Samples Leaf", 1, 500, 1,
                 help=hp_desc["min_samples_leaf"]
             )
             hp["min_weight_fraction_leaf"] = st.number_input(
-                "Min Weight Fraction Leaf",
-                0.0, 0.5, 0.0, 0.01,
+                "Min Weight Fraction Leaf", 0.0, 0.5, 0.0, 0.01,
                 help=hp_desc["min_weight_fraction_leaf"],
             )
             hp["max_depth"] = st.slider(
@@ -322,8 +385,7 @@ with st.sidebar:
                 help=hp_desc["max_depth"]
             )
             hp["min_impurity_decrease"] = st.number_input(
-                "Min Impurity Decrease",
-                0.0, 1.0, 0.0, 0.01,
+                "Min Impurity Decrease", 0.0, 1.0, 0.0, 0.01,
                 help=hp_desc["min_impurity_decrease"],
             )
             hp["init"] = none_or_widget(
@@ -337,28 +399,23 @@ with st.sidebar:
                 help=hp_desc["max_features"],
             )
             hp["max_leaf_nodes"] = none_or_widget(
-                "max_leaf_nodes",
-                2, 500, 10, 1,
+                "max_leaf_nodes", 2, 500, 10, 1,
                 help=hp_desc["max_leaf_nodes"]
             )
             hp["validation_fraction"] = st.number_input(
-                "Validation Fraction",
-                0.01, 0.99, 0.1, 0.01,
+                "Validation Fraction", 0.01, 0.99, 0.1, 0.01,
                 help=hp_desc["validation_fraction"],
             )
             hp["n_iter_no_change"] = none_or_widget(
-                "n_iter_no_change",
-                1, 500, 10, 1,
+                "n_iter_no_change", 1, 500, 10, 1,
                 help=hp_desc["n_iter_no_change"]
             )
             hp["tol"] = st.number_input(
-                "Tol",
-                0.0, 1.0, 1e-4, 1e-4,
+                "Tol", 0.0, 1.0, 1e-4, 1e-4,
                 help=hp_desc["tol"]
             )
             hp["ccp_alpha"] = st.number_input(
-                "CCP Alpha",
-                0.0, 1.0, 0.0, 0.01,
+                "CCP Alpha", 0.0, 1.0, 0.0, 0.01,
                 help=hp_desc["ccp_alpha"]
             )
 
