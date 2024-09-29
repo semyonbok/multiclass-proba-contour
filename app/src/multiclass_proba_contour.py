@@ -2,15 +2,14 @@
 Allows examining the classification performance of a supervised ML model.
 """
 # %% set-up
-# pylint: disable=fixme
-
 from itertools import cycle
-from typing import Sequence
+from typing import Any, Sequence, Tuple, Optional
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.base import is_classifier
 
 plt.style.use("seaborn-v0_8-ticks")
 
@@ -24,20 +23,22 @@ class ProbaVis():
 
     ...
 
-    Attributes
+    Parameters
     ----------
     model : classifier
-        An instance of a supervised ML model implementation with ``fit``,
-        ``predict``, ``predict_proba`` methods and ``class_`` data attribute
-        assigned during ``fit`` call.
+        An instance of a supervised ML model implementation with `fit`,
+        `predict`, `predict_proba` `score`, `set_params` methods.
     train_data : pd.DataFrame of shape (n_samples, n_features)
         Data frame containing two numerical features used for model training.
     train_target : array-like of shape (n_samples,)
-        Classes of samples from ``train_data``.
-    features : array-like of shape 2
+        Classes of samples from `train_data`.
+    features : array-like of shape (2,)
         A sequence listing two numerical features to be used for model
-        training; contains either ``str`` or ``int`` referring to either
-        feature names or indexes in ``train_data``.
+        training; contains either `str` or `int` referring to either
+        feature names or indexes in `train_data`.
+    grid_res : tuple of int, optional, default=(100, 100)
+        Resolution of the grid for plotting decision boundaries and
+        probabilities.
 
     Methods
     -------
@@ -55,17 +56,25 @@ class ProbaVis():
         Tuned for a widget use; adjusts passed hyperparameters  of the set
         supervised ML model and calls plot method.
         **Warning:** changes hyperparameters of the set model.
-
+    plot_confusion_matrices()
+        Plots two confusion matrices: one showing raw counts and the other
+        showing row-normalized values
+    plot_error_matrices()
+        Plots two error matrices: one normalized by predicted values (columns)
+        and another normalized by true class (rows)
     """
     FS = 22  # "xx-large"
 
     def __init__(
-            self, model, train_data: 'pd.DataFrame', train_target: 'Sequence',
-            features: 'Sequence', grid_res: 'tuple[int, int]' = (100, 100)
+            self, model: Any,
+            train_data: pd.DataFrame,
+            train_target: Sequence,
+            features: Sequence[str | int],
+            grid_res: Tuple[int, int] = (100, 100)
             ):
         self._define_utilities()
-        self.set_model(model)
         self.set_data(train_data, train_target, features, grid_res)
+        self.set_model(model)
 
     def _define_utilities(self):
         self._asserts = {
@@ -86,27 +95,31 @@ class ProbaVis():
 
         self._m_styles = ["o", "s", "P", "v", "D", "X"]
 
-    def set_model(self, new_model):
+    def set_model(self, new_model: Any):
         """
         Sets the supervised ML model, performance of which is examined.
 
         Parameters
         ----------
         new_model : classifier
-            An instance of a supervised ML model implementation with ``fit``,
-            ``predict``, ``predict_proba`` methods and ``class_`` data
-            attribute assigned during ``fit`` call.
+            An instance of a supervised ML model implementation with `fit`,
+            `predict`, `predict_proba` methods and `class_` data
+            attribute assigned during `fit` call.
 
         Returns
         -------
-        None.
-
+        `None`.
         """
+        if is_classifier(new_model):
+            new_model.fit(self.train_data.values, self.train_target)
         self.model = new_model
 
     def set_data(
-            self, train_data: 'pd.DataFrame', train_target: 'Sequence',
-            features: 'Sequence', grid_res: 'tuple[int, int]' = (100, 100)
+            self,
+            train_data: pd.DataFrame,
+            train_target: Sequence,
+            features: Sequence[str | int],
+            grid_res: Tuple[int, int] = (100, 100)
             ):
         """
         Sets data attributes related to the training dataset.
@@ -117,18 +130,18 @@ class ProbaVis():
             Data frame containing two numerical features used for model
             training.
         train_target : array-like of shape (n_samples,)
-            Classes of samples from ``train_data``.
+            Classes of samples from `train_data`.
         features : array-like of shape 2
             A sequence listing two numerical features to be used for model
-            training; contains either ``str`` or ``int`` referring to either
-            feature names or feature indexes in ``train_data``.
-        grid_res : tuple[int, int], optional
-            Resolution of contour plot; the default is (100, 100).
+            training; contains either `str` or `int` referring to either
+            feature names or feature indexes in `train_data`.
+        grid_res : tuple of int, optional, default=(100, 100)
+            Resolution of the grid for plotting decision boundaries and
+            probabilities.
 
         Returns
         -------
-        None.
-
+        `None`.
         """
         # input validation
         assert train_data.shape[0] == len(train_target), self._asserts["a1"]
@@ -144,8 +157,8 @@ class ProbaVis():
 
         for feature in train_data.columns:
             assert (
-                pd.api.types.is_numeric_dtype(train_data[feature]) &
-                ~pd.api.types.is_bool_dtype(train_data[feature])
+                pd.api.types.is_numeric_dtype(train_data[feature]) and
+                not pd.api.types.is_bool_dtype(train_data[feature])
             ), self._asserts["a4"].format(feature)
 
         # define new entries for contour, ensure all data points will be seen
@@ -171,11 +184,12 @@ class ProbaVis():
         self.train_data = train_data
         self.features = train_data.columns.values
         self.train_target = train_target
+        self.classes = np.unique(train_target)
 
     def plot(
-            self, contour_on: 'bool' = True, return_fig: 'bool' = False,
-            fig_size: 'tuple[int, int]' = (12, 6)
-            ):
+            self, contour_on: bool = True, return_fig: bool = False,
+            fig_size: Tuple[int, int] = (12, 6)
+            ) -> Optional[plt.Figure]:
         """
         Draws scatter plot displaying the training data discriminated by class
         and contour plots with the height values corresponding to class
@@ -186,19 +200,18 @@ class ProbaVis():
         Parameters
         ----------
         contour_on : bool, optional
-           If ``True``, contour plots are drawn in addition to scatter plot; if
-           ``False``, only scatter plot is drawn; the default is ``True``.
+           If `True`, contour plots are drawn in addition to scatter plot; if
+           `False`, only scatter plot is drawn; the default is `True`.
         return_fig : bool, optional
-            If ``True``, returns a ``matplotlib.figure.Figure`` instance; if
-            ``False``, returns ``None``; the default is ``False``.
-        fig_size : tuple[int, int], optional
-            Figure dimensions; the default is (12, 6).
+            If `True`, returns a `matplotlib.figure.Figure` instance; if
+            `False`, returns `None`; the default is `False`.
+        fig_size : tuple of int, optional, default=(12, 6)
+            A tuple specifying the width and height of the figure in inches.
 
         Returns
         -------
-        fig : matplotlib.figure.Figure
-            The generated figure (if ``return_fig`` is ``True``).
-
+        fig : matplotlib.figure.Figure or None
+            The generated figure if `return_fig` is `True`; otherwise `None`.
         """
         # figure canvas and appearance
         fig, axes = plt.subplots(1, 1, figsize=fig_size, tight_layout=True)
@@ -213,7 +226,6 @@ class ProbaVis():
 
         # fit model, get predictions and train score
         if contour_on:
-            self.model.fit(self.train_data.values, self.train_target)
             pred_proba = self.model.predict_proba(self._mesh_entries)
             pred_class = self.model.predict(self._mesh_entries)
             train_score = self.model.score(
@@ -232,7 +244,7 @@ class ProbaVis():
                 )
 
         # iteratively plot contours and data points for every class
-        for index, class_ in enumerate(np.unique(self.train_target)):
+        for index, class_ in enumerate(self.classes):
             if contour_on:
                 class_proba = np.where(
                     (pred_class == class_), pred_proba[:, index], np.nan
@@ -276,81 +288,124 @@ class ProbaVis():
         if return_fig:
             return fig
 
-    def plot_confusion_matrices(self, return_fig=False, fig_size=(16, 16)):
-        self.model.fit(self.train_data, self.train_target)
-        sw = self.model.predict(self.train_data) != self.train_target
-
-        with plt.rc_context({'font.size': self.FS}):
-            fig, axes = plt.subplots(
-                nrows=2, ncols=2, figsize=fig_size, tight_layout=True,
-                )
-
-            axes[0][0].set_title("Confusion Matrix (CM)")
-            ConfusionMatrixDisplay.from_estimator(
-                self.model, self.train_data, self.train_target,
-                display_labels=np.unique(self.train_target).tolist(),
-                normalize=None,
-                cmap="Greys",
-                ax=axes[0][0]
-            )
-
-            axes[0][1].set_title("CM normalized by row")
-            ConfusionMatrixDisplay.from_estimator(
-                self.model, self.train_data, self.train_target,
-                display_labels=np.unique(self.train_target).tolist(),
-                normalize="true",
-                cmap="Greys",
-                ax=axes[0][1],
-                values_format=".0%",
-                im_kw={"vmin": 0, "vmax": 1}
-            )
-
-            axes[1][0].set_title("Errors normalized by column")
-            ConfusionMatrixDisplay.from_estimator(
-                self.model, self.train_data, self.train_target,
-                display_labels=np.unique(self.train_target).tolist(),
-                sample_weight=sw,
-                normalize="pred",
-                cmap="Reds",
-                ax=axes[1][1],
-                values_format=".0%",
-                im_kw={"vmin": 0, "vmax": 1, "aspect": 1}
-            )
-
-            axes[1][1].set_title("Errors normalized by row")
-            ConfusionMatrixDisplay.from_estimator(
-                self.model, self.train_data, self.train_target,
-                display_labels=np.unique(self.train_target).tolist(),
-                sample_weight=sw,
-                normalize="true",
-                cmap="Reds",
-                ax=axes[1][0],
-                values_format=".0%",
-                im_kw={"vmin": 0, "vmax": 1}
-            )
-
-        if return_fig:
-            return fig
-
-    def replot(self, contour_on: 'bool' = True, **params):
+    def replot(self, contour_on: bool = True, **params):
         """
-       Tuned for a widget use; adjusts passed hyperparameters  of the set
-       supervised ML model and calls plot method.
-       **Warning:** changes hyperparameters of the set model.
+        Tuned for a widget use; adjusts passed hyperparameters  of the set
+        supervised ML model and calls `plot` method.
+        **Warning:** changes hyperparameters of the set model.
 
         Parameters
         ----------
         contour_on : bool, optional
-            If ``True``, contour plots are drawn in addition to scatter plot;
-            if ``False``, only scatter plot is drawn; the default is ``True``.
+            If `True`, contour plots are drawn in addition to scatter plot;
+            if `False`, only scatter plot is drawn; the default is `True`.
         **params : kwargs
             Additional keyword arguments representing hyperparameters specific
             to the set supervised ML model.
 
         Returns
         -------
-        None.
-
+        `None`.
         """
         self.set_model(self.model.set_params(**params))
         self.plot(contour_on=contour_on)
+
+    def plot_confusion_matrices(
+            self, return_fig: bool = False, fig_size: Tuple[int, int] = (12, 6)
+            ):
+        """
+        Plots two confusion matrices: one showing raw counts and the other
+        showing row-normalized values (i.e., normalized by true class).
+        The confusion matrices provide insights into the performance of the
+        supervised ML model.
+
+        Parameters
+        ----------
+        return_fig : bool, optional
+            If `True`, returns a `matplotlib.figure.Figure` instance; if
+            `False`, returns `None`; the default is `False`.
+        fig_size : tuple of int, optional, default=(12, 6)
+            A tuple specifying the width and height of the figure in inches.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure or None
+            The generated figure if `return_fig` is `True`; otherwise `None`.
+        """
+        with plt.rc_context({'font.size': self.FS}):
+            fig, axes = plt.subplots(1, 2, figsize=fig_size, tight_layout=True)
+
+            axes[0].set_title("Confusion Matrix (CM)")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data.values, self.train_target,
+                display_labels=self.classes,
+                normalize=None,
+                cmap="Greys",
+                ax=axes[0]
+            )
+
+            axes[1].set_title("CM normalized by row")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data.values, self.train_target,
+                display_labels=self.classes,
+                normalize="true",
+                cmap="Greys",
+                ax=axes[1],
+                values_format=".0%",
+                im_kw={"vmin": 0, "vmax": 1}
+            )
+        if return_fig:
+            return fig
+
+    def plot_error_matrices(
+            self, return_fig: bool = False, fig_size: Tuple[int, int] = (12, 6)
+            ):
+        """
+        Plots two error matrices: one normalized by predicted values (columns)
+        and another normalized by true class (rows). These matrices highlight
+        the distribution of prediction errors made by the supervised ML model,
+        helping to identify where the model struggles the most.
+
+        Parameters
+        ----------
+        return_fig : bool, optional
+            If `True`, returns a `matplotlib.figure.Figure` instance; if
+            `False`, returns `None`; the default is `False`.
+        fig_size : tuple of int, optional, default=(12, 6)
+            A tuple specifying the width and height of the figure in inches.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure or None
+            The generated figure if `return_fig` is `True`; otherwise `None`.
+        """
+        sw = self.model.predict(self.train_data.values) != self.train_target
+        with plt.rc_context({'font.size': self.FS}):
+            fig, axes = plt.subplots(1, 2, figsize=fig_size, tight_layout=True)
+
+            axes[0].set_title("Errors normalized by column")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data.values, self.train_target,
+                display_labels=self.classes,
+                sample_weight=sw,
+                normalize="pred",
+                cmap="Reds",
+                ax=axes[0],
+                values_format=".0%",
+                im_kw={"vmin": 0, "vmax": 1}
+            )
+
+            axes[1].set_title("Errors normalized by row")
+            ConfusionMatrixDisplay.from_estimator(
+                self.model, self.train_data.values, self.train_target,
+                display_labels=self.classes,
+                sample_weight=sw,
+                normalize="true",
+                cmap="Reds",
+                ax=axes[1],
+                values_format=".0%",
+                im_kw={"vmin": 0, "vmax": 1}
+            )
+
+        if return_fig:
+            return fig

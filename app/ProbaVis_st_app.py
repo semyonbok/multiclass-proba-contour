@@ -84,6 +84,7 @@ all_models = [
 ]
 
 # main display space
+st.set_page_config(layout='wide')
 st.header("Multiclass Probability Visualizer - Welcome!")
 # st.info("Here is why this thing is useful.")
 
@@ -194,7 +195,7 @@ with st.sidebar:
                 disabled=disable_dual
             )
             hp["max_iter"] = st.slider(
-                "Max Iterations", 1, 500, 100, 10,
+                "Max Iterations", 1, 500, 100, 1,
                 help=hp_desc["max_iter"]
             )
 
@@ -443,13 +444,24 @@ if set_name is not None:
         )
     else:
         st.session_state["p_v"].set_model(model.set_params(**hp))
-        st.subheader("Contour Plot")
-        st.pyplot(
+        st.subheader("Plots!")
+        tab_contour, tab_conf, tab_err = st.tabs(
+            ["Decision Boundary", "Confusion Matrices", "Error Matrices"]
+        )
+        tab_contour.pyplot(
             st.session_state["p_v"].plot(
                 contour_on=True, return_fig=True, fig_size=(16, 9)
             )
         )
-        st.subheader("Confusion Matrices and Errors")
-        st.pyplot(
-            st.session_state["p_v"].plot_confusion_matrices(return_fig=True)
+        tab_conf.pyplot(
+            st.session_state["p_v"].plot_confusion_matrices(
+                return_fig=True, fig_size=(16, 9)
+                )
             )
+        tab_err.pyplot(
+            st.session_state["p_v"].plot_error_matrices(
+                return_fig=True, fig_size=(16, 9)
+                )
+            )
+else:
+    model = None
