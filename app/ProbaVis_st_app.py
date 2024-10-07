@@ -120,7 +120,7 @@ with st.sidebar:
             st.stop()
 
     st.subheader("Classifier Model")
-    model_pick = st.radio("Select one of the Classifiers", all_models)
+    model_pick = st.selectbox("Select one of the Classifiers", all_models)
     model = fetch_model(model_pick)
 
     # set `random_state` if the model has this parameter
@@ -319,12 +319,17 @@ with st.sidebar:
                 "Bootstrap", True,
                 help=hp_desc["bootstrap"]
                 )
-            if hp["bootstrap"]:
-                hp["oob_score"] = st.checkbox(
-                    "OOB score", False, help=hp_desc["oob_score"]
-                )
-            else:
-                hp["oob_score"] = False
+            disable_oob_score = not hp["bootstrap"]
+            if disable_oob_score:
+                st.session_state.oob_score_checkbox = False
+                st.session_state.max_samples_checkbox = False
+            hp["oob_score"] = st.checkbox(
+                "OOB score",
+                value=False,
+                help=hp_desc["oob_score"],
+                disabled=disable_oob_score,
+                key="oob_score_checkbox",
+            )
             hp["class_weight"] = st.selectbox(
                 "Class Weight",
                 [None, "balanced", "balanced_subsample"],
@@ -335,11 +340,15 @@ with st.sidebar:
                 min_value=0.0, value=0.0, step=0.01,
                 help=hp_desc["ccp_alpha"],
             )
-            if data is not None:
-                hp["max_samples"] = none_or_widget(
-                    "max_samples", 1, data.shape[0], 5,
-                    help=hp_desc["max_samples"]
-                )
+            hp["max_samples"] = none_or_widget(
+                "max_samples", 1, data.shape[0], 5,
+                checkbox_kwargs=dict(
+                    disabled=disable_oob_score,
+                    value=False,
+                    key="max_samples_checkbox"
+                ),
+                help=hp_desc["max_samples"]
+            )
 
         # %%% GBC
         if isinstance(model, GradientBoostingClassifier):
